@@ -89,14 +89,9 @@ interface PictureCardProps {
 /** Core patient component: a square real photo with a 1-3 word label */
 export function PictureCard({ src, label, selected, onClick, clip, poster, className, size = 'md', alt, badge }: PictureCardProps) {
   const min = size === 'lg' ? 'min-w-[160px]' : size === 'sm' ? 'min-w-[96px]' : 'min-w-[132px]'
-  return (
-    <motion.button
-      type="button"
-      whileTap={{ scale: 0.97 }}
-      onClick={onClick}
-      aria-pressed={selected}
-      className={cx('group flex w-full flex-col items-center gap-2.5 text-center', min, className)}
-    >
+  const outer = cx('group flex w-full flex-col items-center gap-2.5 text-center', min, className)
+  const inner = (
+    <>
       <span
         className={cx(
           'relative block aspect-square w-full overflow-hidden rounded-[24px] bg-sand shadow-soft transition-all',
@@ -114,6 +109,13 @@ export function PictureCard({ src, label, selected, onClick, clip, poster, class
         {badge}
       </span>
       <span className="text-[17px] font-semibold leading-tight tracking-tight">{label}</span>
+    </>
+  )
+  // A card without an action is a picture, not a button: not focusable, nothing to press
+  if (!onClick) return <div className={outer}>{inner}</div>
+  return (
+    <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={onClick} aria-pressed={selected} className={outer}>
+      {inner}
     </motion.button>
   )
 }

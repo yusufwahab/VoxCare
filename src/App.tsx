@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
-import { AnimatePresence } from 'motion/react'
+import { AnimatePresence, MotionConfig } from 'motion/react'
 import { DEMO_MODE } from './lib/whatsapp'
 
 const Landing = lazy(() => import('./pages/Landing'))
@@ -25,7 +25,10 @@ function Loading() {
 
 export default function App() {
   const location = useLocation()
+  // reducedMotion="user": every motion animation follows the phone's "reduce motion" setting (spec §10).
+  // CSS animations are handled in index.css.
   return (
+    <MotionConfig reducedMotion="user">
     <Suspense fallback={<Loading />}>
       {DEMO_MODE && <span className="fixed bottom-3 left-3 z-[60] rounded-full border border-line bg-ivory/90 px-3 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-cocoa shadow-soft backdrop-blur">Demo mode</span>}
       <AnimatePresence mode="wait" initial={false}>
@@ -45,5 +48,6 @@ export default function App() {
         </Routes>
       </AnimatePresence>
     </Suspense>
+    </MotionConfig>
   )
 }
