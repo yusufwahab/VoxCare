@@ -23,7 +23,7 @@ export function InvitePanel() {
       <Eyebrow>Invite the patient</Eyebrow>
       <div className="mt-4 flex flex-wrap items-center gap-6">
         <div className="rounded-2xl bg-ivory p-3" aria-label="QR code to join the visit">
-          <QRCodeSVG value={link} size={148} fgColor="#24140E" bgColor="#FBF6EE" level="M" />
+          <QRCodeSVG title="QR code to join this visit" value={link} size={148} fgColor="#24140E" bgColor="#FBF6EE" level="M" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-muted">Or open VoxCare on their phone and type</p>

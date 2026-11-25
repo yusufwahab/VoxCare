@@ -168,7 +168,7 @@ function PinLogin({ onDone }: { onDone: (d: NonNullable<ReturnType<typeof useSta
       <div className="w-full max-w-sm text-center">
         <Eyebrow>Hospital mode</Eyebrow>
         <h1 className="h2 mt-4">Doctor PIN</h1>
-        <div className="my-6 flex justify-center gap-4" aria-label={`${pin.length} of 4 digits entered`}>
+        <div className="my-6 flex justify-center gap-4" role="status" aria-label={`${pin.length} of 4 digits entered`}>
           {[0, 1, 2, 3].map((i) => <span key={i} className={cx('h-5 w-5 rounded-full border-2 transition-colors', i < pin.length ? 'border-ember bg-ember' : 'border-line bg-transparent', err && 'border-alert')} />)}
         </div>
         {err && <p role="alert" className="mb-3 font-semibold text-alert">That PIN is not right. Try again.</p>}

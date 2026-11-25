@@ -46,7 +46,7 @@ function CodeEntry() {
       <div className="w-full max-w-sm text-center">
         <Eyebrow>Join a visit</Eyebrow>
         <h1 className="h2 mt-4">Doctor&apos;s code</h1>
-        <div className="my-6 flex justify-center gap-2.5" aria-label={`${code.length} of 6 digits entered`}>
+        <div className="my-6 flex justify-center gap-2.5" role="status" aria-label={`${code.length} of 6 digits entered`}>
           {[0, 1, 2, 3, 4, 5].map((i) => <span key={i} className={`grid h-14 w-11 place-items-center rounded-2xl border-2 text-2xl font-semibold ${code[i] ? 'border-ember bg-white' : 'border-line'}`}>{code[i] ?? ''}</span>)}
         </div>
         {error && <p role="alert" className="mb-3 font-semibold text-alert">{error}</p>}
