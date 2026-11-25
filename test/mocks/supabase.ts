@@ -92,6 +92,10 @@ class Query implements PromiseLike<Result> {
         break
       case 'insert':
         out = this.payload.map((p) => ({ id: randomUUID(), ...copy(p) }))
+        // Like the primary key in Postgres: a repeated id fails the whole insert
+        if (out.some((r, i) => rows.some((x) => x.id === r.id) || out.findIndex((y) => y.id === r.id) !== i)) {
+          return { data: null, error: { message: 'duplicate key value violates unique constraint', code: '23505' } }
+        }
         rows.push(...out)
         break
       case 'update':
