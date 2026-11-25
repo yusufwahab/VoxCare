@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 import { loadEnv, type Plugin } from 'vite'
+import { TEST_ENV } from './test/env.ts'
 
 /** Dev only: serve the /api functions from this Vite server, using the keys in .env (no Vercel login needed). */
 function devApi(): Plugin {
@@ -56,14 +57,25 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         navigateFallbackDenylist: [/^\/api\//],
+        // Emergency data and briefing audio are NOT cached here: src/lib/offline.ts keeps only this phone's own card,
+        // with an expiry, and clears it on reset (T16). Never add API or Supabase storage routes to this list.
         runtimeCaching: [
           { urlPattern: /\/assets\/.*\.(webp|jpg|png)$/, handler: 'CacheFirst', options: { cacheName: 'vc-images', expiration: { maxEntries: 400 } } },
           { urlPattern: /\/assets\/.*\.mp4$/, handler: 'CacheFirst', options: { cacheName: 'vc-clips', rangeRequests: true, cacheableResponse: { statuses: [200] } } },
-          { urlPattern: /\/briefings\/.*\.mp3$/, handler: 'CacheFirst', options: { cacheName: 'vc-briefings', rangeRequests: true, cacheableResponse: { statuses: [0, 200] } } },
-          { urlPattern: /\/api\/emergency/, handler: 'NetworkFirst', options: { cacheName: 'vc-emergency', networkTimeoutSeconds: 4 } },
         ],
       },
     }),
   ],
-  test: { pool: 'vmThreads', environment: 'node', include: ['src/**/*.test.ts', 'api/**/*.test.ts'] },
+  test: {
+    pool: 'vmThreads',
+    environment: 'node',
+    include: ['src/**/*.test.{ts,tsx}', 'api/**/*.test.ts', 'server/**/*.test.ts', 'shared/**/*.test.ts', 'test/**/*.test.ts'],
+    // Blocks the network, fakes Supabase and resets state between tests (see test/setup.ts)
+    setupFiles: ['./test/setup.ts'],
+    // Dummy values that override anything in .env, so tests never see real keys
+    env: TEST_ENV,
+    restoreMocks: true,
+    unstubGlobals: true,
+    unstubEnvs: true,
+  },
 })

@@ -21,8 +21,8 @@ export function VoxCard({ patientId, name, photo, mini }: { patientId: string; n
             </span>
             <span className="min-w-0 truncate text-2xl font-semibold tracking-tight sm:text-3xl">{name || 'My card'}</span>
           </div>
-          <span className="shrink-0 rounded-2xl bg-ivory p-2 shadow-lift" aria-label="QR code for emergency information">
-            <QRCodeSVG value={url} size={mini ? 72 : 96} fgColor="#24140E" bgColor="#FBF6EE" level="M" />
+          <span className="shrink-0 rounded-2xl bg-ivory p-2 shadow-lift" role="img" aria-label="QR code for emergency information">
+            <QRCodeSVG aria-hidden value={url} size={mini ? 72 : 96} fgColor="#24140E" bgColor="#FBF6EE" level="M" />
           </span>
         </div>
       </div>

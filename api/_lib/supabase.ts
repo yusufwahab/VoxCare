@@ -8,6 +8,12 @@ export function db(): SupabaseClient {
   return client
 }
 
+/** A database call failed: log where and the error code only, give the client a generic 500 */
+export function dbFailed(where: string, error: { code?: string } | null | undefined): never {
+  console.error(`[db] ${where} failed`, { code: error?.code ?? 'unknown' })
+  throw new HttpError(500, 'Database error')
+}
+
 export const sha256 = (s: string) => createHash('sha256').update(s).digest('hex')
 export const newToken = () => randomBytes(24).toString('hex')
 
@@ -51,7 +57,7 @@ export async function loadPatient(rawId: string): Promise<PatientRow> {
   const id = resolveId(rawId)
   if (!isUuid(id)) throw new HttpError(404, 'Not found')
   const { data, error } = await db().from('patients').select('*').eq('id', id).maybeSingle()
-  if (error) throw new HttpError(500, error.message)
+  if (error) dbFailed('patient lookup', error)
   if (!data) throw new HttpError(404, 'Not found')
   // The seeded demo patient uses a teammate's phone and email from the environment
   if (id === DEMO_UUID) {

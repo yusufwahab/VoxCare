@@ -29,7 +29,7 @@ export default function Landing() {
   }
 
   return (
-    <div className="bg-ivory">
+    <main className="bg-ivory">
       {/* 1. Hero */}
       <section className="relative isolate overflow-hidden text-ivory" style={{ background: 'var(--warm-gradient)' }}>
         <nav className="relative z-20 mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
@@ -163,6 +163,6 @@ export default function Landing() {
           <span>Built for Deaf and speech-impaired people in Nigeria.</span>
         </div>
       </footer>
-    </div>
+    </main>
   )
 }

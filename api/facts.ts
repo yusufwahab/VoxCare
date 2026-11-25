@@ -1,6 +1,8 @@
+import { waitUntil } from '@vercel/functions'
 import { route, body, q } from './_lib/http.js'
-import { HttpError } from './_lib/env.js'
-import { db, loadPatient, requireDoctor, sha256 } from './_lib/supabase.js'
+import { HttpError, safeMessage } from './_lib/env.js'
+import { db, dbFailed, loadPatient, requireDoctor, sha256 } from './_lib/supabase.js'
+import { ensureBriefings } from './_lib/briefing.js'
 
 const TYPES = ['condition', 'allergy', 'medicine', 'blood_group', 'event_history', 'body_fact']
 
@@ -21,6 +23,11 @@ export default route(async (req) => {
     .filter((f) => TYPES.includes(f.type) && f.value)
     .slice(0, 20)
     .map((f) => ({ patient_id: p.id, type: f.type, value: f.value.slice(0, 80), status: 'self_reported' }))
-  if (rows.length) await db().from('facts').insert(rows)
+  if (rows.length) {
+    const { error } = await db().from('facts').insert(rows)
+    if (error) dbFailed('self facts insert', error)
+    // The briefing reads out self-reported facts too, so refresh it (in the background)
+    waitUntil(ensureBriefings(p.id).catch((e) => console.error('[briefing] background failed', safeMessage(e))))
+  }
   return { ok: true }
 })

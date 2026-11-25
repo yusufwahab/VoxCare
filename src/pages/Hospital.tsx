@@ -145,13 +145,22 @@ function PinLogin({ onDone }: { onDone: (d: NonNullable<ReturnType<typeof useSta
   const [pin, setPin] = useState('')
   const [err, setErr] = useState(false)
   const [busy, setBusy] = useState(false)
+  // Server message when sign-in could not be checked (too many attempts, server unavailable)
+  const [failure, setFailure] = useState('')
 
   const submit = async (value: string) => {
     setBusy(true)
-    const d = await doctorLogin(value)
-    setBusy(false)
-    if (d) onDone(d)
-    else { setErr(true); setPin('') }
+    setFailure('')
+    try {
+      const d = await doctorLogin(value)
+      if (d) onDone(d)
+      else { setErr(true); setPin('') }
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : 'Could not sign in. Try again.')
+      setPin('')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -159,10 +168,11 @@ function PinLogin({ onDone }: { onDone: (d: NonNullable<ReturnType<typeof useSta
       <div className="w-full max-w-sm text-center">
         <Eyebrow>Hospital mode</Eyebrow>
         <h1 className="h2 mt-4">Doctor PIN</h1>
-        <div className="my-6 flex justify-center gap-4" aria-label={`${pin.length} of 4 digits entered`}>
+        <div className="my-6 flex justify-center gap-4" role="status" aria-label={`${pin.length} of 4 digits entered`}>
           {[0, 1, 2, 3].map((i) => <span key={i} className={cx('h-5 w-5 rounded-full border-2 transition-colors', i < pin.length ? 'border-ember bg-ember' : 'border-line bg-transparent', err && 'border-alert')} />)}
         </div>
         {err && <p role="alert" className="mb-3 font-semibold text-alert">That PIN is not right. Try again.</p>}
+        {failure && <p role="alert" className="mb-3 font-semibold text-alert">{failure}</p>}
         <Dialpad value={pin} maxLength={4} onChange={(v) => { setErr(false); setPin(v.replace(/\D/g, '')); if (v.replace(/\D/g, '').length === 4) submit(v.replace(/\D/g, '')) }} hideDisplay />
         {busy && <p className="mt-4 text-muted">Checking</p>}
         <Link to="/" className="mt-8 inline-block text-sm font-semibold text-muted underline-offset-4 hover:underline">Back to home</Link>

@@ -1,6 +1,7 @@
 import { env, HttpError } from './env.js'
-import { db, loadPatient, sha256 } from './supabase.js'
+import { db, dbFailed, loadPatient, resolveId, sha256 } from './supabase.js'
 import { briefingText, type FactRow } from './briefingText.js'
+import { fetchWithTimeout, TIMEOUTS } from './fetchTimeout.js'
 
 export type Lang = 'en' | 'yo' | 'ig' | 'ha'
 export const LANG_IDS: Lang[] = ['en', 'yo', 'ig', 'ha']
@@ -24,7 +25,7 @@ interface VoiceInfo { id?: string; name?: string; voice?: string; languages?: st
 
 async function pickVoices(): Promise<Record<Lang, string>> {
   if (voiceCache) return voiceCache
-  const res = await fetch(`${YARN}/voices`, { headers: { Authorization: `Bearer ${env('YARNGPT_API_KEY')}` } })
+  const res = await fetchWithTimeout('YarnGPT', `${YARN}/voices`, { headers: { Authorization: `Bearer ${env('YARNGPT_API_KEY')}` } }, TIMEOUTS.yarnApi)
   if (!res.ok) throw new HttpError(502, `YarnGPT voices error ${res.status}`)
   const json = (await res.json()) as VoiceInfo[] | { voices?: VoiceInfo[]; data?: VoiceInfo[] }
   const list: VoiceInfo[] = Array.isArray(json) ? json : (json.voices ?? json.data ?? [])
@@ -44,6 +45,8 @@ async function pickVoices(): Promise<Record<Lang, string>> {
   return chosen
 }
 
+/** Pause between YarnGPT job status checks (tests shorten it) */
+export const timing = { pollMs: 1500 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 async function synthesise(text: string, lang: Lang, voice: string, cacheKey: string): Promise<Buffer> {
@@ -55,19 +58,24 @@ async function synthesise(text: string, lang: Lang, voice: string, cacheKey: str
   const payload: Record<string, unknown> = { text, voice, output_format: 'mp3' }
   if (lang !== 'en') payload.target_language = lang
   console.log('[briefing] YarnGPT call', lang, voice, cacheKey.slice(0, 10))
-  const start = await fetch(`${YARN}/tts`, { method: 'POST', headers, body: JSON.stringify(payload) })
-  if (start.status !== 202 && !start.ok) throw new HttpError(502, `YarnGPT tts error ${start.status}: ${(await start.text()).slice(0, 200)}`)
+  const start = await fetchWithTimeout('YarnGPT', `${YARN}/tts`, { method: 'POST', headers, body: JSON.stringify(payload) }, TIMEOUTS.yarnApi)
+  if (start.status !== 202 && !start.ok) throw new HttpError(502, `YarnGPT tts error ${start.status}`)
   const { job_id } = (await start.json()) as { job_id: string }
 
   for (let i = 0; i < 40; i++) {
-    await sleep(1500)
-    const st = await fetch(`${YARN}/status/${job_id}`, { headers: { Authorization: headers.Authorization } })
+    await sleep(timing.pollMs)
+    let st: Response
+    try {
+      st = await fetchWithTimeout('YarnGPT', `${YARN}/status/${job_id}`, { headers: { Authorization: headers.Authorization } }, TIMEOUTS.yarnApi)
+    } catch {
+      continue // a slow or failed status check is retried; the loop bounds the total
+    }
     if (!st.ok) continue
     const s = (await st.json()) as { status: string; audio_url?: string }
     if (s.status === 'failed') throw new HttpError(502, 'YarnGPT job failed')
     if (s.status === 'completed' && s.audio_url) {
       // The URL expires in about an hour, so download immediately
-      const audio = await fetch(s.audio_url)
+      const audio = await fetchWithTimeout('YarnGPT audio', s.audio_url, {}, TIMEOUTS.yarnAudio)
       if (!audio.ok) throw new HttpError(502, 'Could not download audio')
       return Buffer.from(await audio.arrayBuffer())
     }
@@ -85,8 +93,40 @@ export async function currentBriefing(rawPatientId: string) {
   return { patient, verified, unverified, text, textHash: sha256(text) }
 }
 
-/** Make sure all four briefings exist for the current text. Reuses anything already generated. */
-export async function ensureBriefings(rawPatientId: string): Promise<{ generated: Lang[]; reused: Lang[] }> {
+type BriefingResult = { generated: Lang[]; reused: Lang[] }
+const runs = new Map<string, { again: boolean; promise: Promise<BriefingResult> }>()
+
+/**
+ * Make sure all four briefings exist for the current text. Reuses anything already generated.
+ * One run per patient at a time in this process: a request that arrives during a run does not start a
+ * parallel one (which would pay YarnGPT twice); it waits, and the run repeats once afterwards so facts
+ * saved in the meantime are included. The repeat reuses cached audio unless the text changed.
+ */
+export function ensureBriefings(rawPatientId: string): Promise<BriefingResult> {
+  const key = resolveId(rawPatientId)
+  const running = runs.get(key)
+  if (running) {
+    running.again = true
+    return running.promise
+  }
+  const state = { again: false, promise: Promise.resolve<BriefingResult>({ generated: [], reused: [] }) }
+  state.promise = (async () => {
+    try {
+      let result = await generateBriefings(rawPatientId)
+      while (state.again) {
+        state.again = false
+        result = await generateBriefings(rawPatientId)
+      }
+      return result
+    } finally {
+      runs.delete(key)
+    }
+  })()
+  runs.set(key, state)
+  return state.promise
+}
+
+async function generateBriefings(rawPatientId: string): Promise<BriefingResult> {
   const { patient, text, textHash } = await currentBriefing(rawPatientId)
   const voices = await pickVoices()
   const generated: Lang[] = []
@@ -110,7 +150,7 @@ export async function ensureBriefings(rawPatientId: string): Promise<{ generated
       if (!exists) {
         const mp3 = await synthesise(text, lang, voice, cacheKey)
         const { error } = await db().storage.from('briefings').upload(path, mp3, { contentType: 'audio/mpeg', upsert: true })
-        if (error) throw new HttpError(500, `Storage upload failed: ${error.message}`)
+        if (error) dbFailed('briefing audio upload', error as { code?: string })
         generated.push(lang)
       } else reused.push(lang)
 

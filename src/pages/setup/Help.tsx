@@ -6,7 +6,7 @@ import { PillButton } from '../../components/ui'
 import { Dialpad, normaliseNg } from '../../components/Dialpad'
 import { UI } from '../../data/assets'
 import { useDevice } from '../../store/device'
-import { createPatient, requestBriefing } from '../../lib/api'
+import { createPatient } from '../../lib/api'
 
 interface ContactsApi { select: (props: string[], opts?: { multiple?: boolean }) => Promise<{ name?: string[]; tel?: string[] }[]> }
 
@@ -35,7 +35,6 @@ export default function Help() {
       d.setPatient(id, token)
       d.setJoin(join_token)
       d.setHelpConfirmed(false)
-      void requestBriefing(id)
       nav('/setup/check')
     } catch {
       setError('Could not save. Check the internet and try again.')

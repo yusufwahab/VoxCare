@@ -1,15 +1,17 @@
 import type { VercelRequest } from '@vercel/node'
-import { HttpError } from './env.js'
+import { clientKey } from './clientIp.js'
+import { createLimiter, enforce, type Limiter } from './rateLimit.js'
 
-const hits = new Map<string, { n: number; reset: number }>()
+const buckets = new Map<string, Limiter>()
 
-/** Tiny per-IP limiter for guessable inputs (the 6-digit visit code). One server instance, so memory is enough. */
+/**
+ * Per-client limiter for guessable inputs (the 6-digit visit code). Uses the same client identification as the
+ * other limits (X-Forwarded-For only from Render's private proxy), so a client cannot reset it with a fake header.
+ * In memory: one server instance.
+ */
 export function limit(req: VercelRequest, bucket: string, max: number, windowMs = 60_000) {
-  const ip = String(req.headers['x-forwarded-for'] ?? req.socket?.remoteAddress ?? 'unknown').split(',')[0].trim()
-  const key = `${bucket}:${ip}`
-  const now = Date.now()
-  const h = hits.get(key)
-  if (!h || h.reset < now) hits.set(key, { n: 1, reset: now + windowMs })
-  else if (++h.n > max) throw new HttpError(429, 'Too many tries. Wait a minute.')
-  if (hits.size > 5000) for (const [k, v] of hits) if (v.reset < now) hits.delete(k)
+  let l = buckets.get(bucket)
+  if (!l) buckets.set(bucket, (l = createLimiter({ limit: max, windowMs })))
+  const c = clientKey(req)
+  enforce(l, c.key, bucket, c.source)
 }

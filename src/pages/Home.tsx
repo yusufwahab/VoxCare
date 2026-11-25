@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ArrowLeft, Settings } from 'lucide-react'
@@ -6,13 +6,19 @@ import { Page, PictureCard, PillButton } from '../components/ui'
 import { VoxCard } from '../components/VoxCard'
 import { FACTS, UI } from '../data/assets'
 import { useDevice } from '../store/device'
-import { addSelfFacts } from '../lib/api'
+import { addSelfFacts, getEmergency } from '../lib/api'
+import { clearOfflineCard, saveOfflineCard } from '../lib/offline'
 
 export default function Home() {
   const { patientId, token, name, photo } = useDevice()
   const [adding, setAdding] = useState(false)
   const [picked, setPicked] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
+  // Keep the offline copy of this phone's own emergency card fresh (T16). Best effort, nothing visible.
+  useEffect(() => {
+    if (!patientId) return
+    getEmergency(patientId).then((d) => (d ? saveOfflineCard(d) : clearOfflineCard())).catch(() => {})
+  }, [patientId])
   if (!patientId) return <Navigate to="/start" replace />
 
   const save = async () => {

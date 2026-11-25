@@ -74,7 +74,7 @@ async function call<T>(path: string, init: RequestInit | undefined, mock: () => 
       const type = res.headers.get('content-type') ?? ''
       if (type.includes('application/json')) {
         backendUp = true
-        if (!res.ok) throw new Error((await res.json()).error ?? `HTTP ${res.status}`)
+        if (!res.ok) throw Object.assign(new Error((await res.json()).error ?? `HTTP ${res.status}`), { status: res.status })
         return { data: (await res.json()) as T, mock: false }
       }
       if (!MOCK_ALLOWED) throw new Error('The server is not reachable. Check the API address.')
@@ -88,6 +88,14 @@ async function call<T>(path: string, init: RequestInit | undefined, mock: () => 
 }
 
 const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) })
+/** Saves give up after this long, so the screen never waits forever */
+export const SAVE_TIMEOUT_MS = 20_000
+const postWithTimeout = (body: unknown): RequestInit => ({ ...post(body), signal: AbortSignal.timeout(SAVE_TIMEOUT_MS) })
+/** A readable message for a failed save */
+export const saveErrorMessage = (e: unknown) =>
+  e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError') ? 'The server took too long. Try again.'
+    : e instanceof TypeError ? 'Could not reach the server. Check the connection and try again.'
+      : e instanceof Error && e.message ? e.message : 'Could not save. Try again.'
 
 export const isMockBackend = () => backendUp === false
 
@@ -117,11 +125,26 @@ export async function createPatient(p: NewPatient): Promise<{ id: string; token:
 }
 
 // ---- Help person joins by themselves ----
-export async function getHelpStatus(patientId: string, token: string): Promise<boolean> {
-  const { data } = await call<{ confirmed: boolean }>(`/api/join?patientId=${encodeURIComponent(patientId)}&token=${encodeURIComponent(token)}`, undefined, () => ({
+export interface HelpStatus { confirmed: boolean; linkExpired: boolean }
+
+export async function getHelpStatus(patientId: string, token: string): Promise<HelpStatus> {
+  const { data } = await call<{ confirmed: boolean; link_expired?: boolean }>(`/api/join?patientId=${encodeURIComponent(patientId)}&token=${encodeURIComponent(token)}`, undefined, () => ({
     confirmed: !!db().patients[patientId]?.help_confirmed_at,
   }))
-  return data.confirmed
+  return { confirmed: data.confirmed, linkExpired: !!data.link_expired }
+}
+
+/** Replace the invitation link (the old one stops working). Needs this device's secret token. */
+export async function renewJoinLink(patientId: string, token: string): Promise<string> {
+  const { data } = await call<{ join_token: string }>('/api/join', post({ action: 'reinvite', patientId, token }), () => {
+    const d = db()
+    const p = d.patients[patientId]
+    if (!p || p.token !== token) throw new Error('Not allowed')
+    p.join_token = uid()
+    save(d)
+    return { join_token: p.join_token }
+  })
+  return data.join_token
 }
 
 export interface JoinInfo { name: string | null; photo_url: string | null; joined: boolean }
@@ -178,9 +201,10 @@ export async function addSelfFacts(patientId: string, token: string, facts: { ty
 
 export interface VerifiedFactInput { id?: string; type: FactType; value: string }
 
-/** Close the visit. With a patient, also saves the facts the doctor confirmed (and refreshes the briefing). */
+/** Close the visit. With a patient, also saves the facts the doctor confirmed. The server refreshes the briefing.
+ *  Throws if the server did not save everything. Safe to retry with the same visitId (no duplicates). */
 export async function finishVisit(args: { visitId: string; patientId: string | null; doctorId: string; facts: VerifiedFactInput[]; remove?: string[]; summary: string }): Promise<void> {
-  await call('/api/verify', post(args), () => {
+  await call('/api/verify', postWithTimeout(args), () => {
     const d = db()
     const p = args.patientId ? d.patients[args.patientId] : undefined
     const at = new Date().toISOString()
@@ -195,7 +219,6 @@ export async function finishVisit(args: { visitId: string; patientId: string | n
       save(d)
     }
   })
-  if (args.patientId) void requestBriefing(args.patientId)
 }
 
 // ---- Visits (one device or two) ----
@@ -237,11 +260,10 @@ export async function appendVisitEvents(visitId: string, code: string, events: V
 }
 
 // ---- Briefing ----
-export async function requestBriefing(patientId: string): Promise<void> {
-  try { await call('/api/briefing', post({ patientId }), () => null) } catch { /* background */ }
-}
+// The server regenerates the voice briefing itself after creating a patient, saving facts or a verified visit.
 
 // ---- Emergency ----
+/** null: the server says this card does not exist. Throws when the server cannot be reached (use the offline copy). */
 export async function getEmergency(id: string): Promise<EmergencyData | null> {
   const { data } = await call<EmergencyData | null>(`/api/emergency?id=${encodeURIComponent(id)}`, undefined, () => {
     const p = db().patients[id]
@@ -252,12 +274,16 @@ export async function getEmergency(id: string): Promise<EmergencyData | null> {
       id: p.id, name: p.name, photo_url: p.photo, help_phone: p.help_phone, help_name: p.help_name, verified, unverified,
       audio: {} as Partial<Record<Lang, string>>, text: briefingText(p.name, verified, unverified),
     }
+  }).catch((e: unknown) => {
+    if ((e as { status?: number }).status === 404) return { data: null }
+    throw e
   })
   return data
 }
 
 export async function sendAlert(patientId: string, loc?: { lat: number; lng: number }): Promise<{ sent: boolean; reason?: string; mock?: boolean }> {
-  const { data, mock } = await call<{ sent: boolean; reason?: string }>('/api/alert', post({ patientId, ...loc }), () => {
+  // The server gives Brevo 10 s; never leave the emergency banner on "sending"
+  const { data, mock } = await call<{ sent: boolean; reason?: string }>('/api/alert', { ...post({ patientId, ...loc }), signal: AbortSignal.timeout(SAVE_TIMEOUT_MS) }, () => {
     const d = db()
     const last = d.alerts[patientId] ?? 0
     if (Date.now() - last < 10 * 60_000) return { sent: true, reason: 'rate_limited' }

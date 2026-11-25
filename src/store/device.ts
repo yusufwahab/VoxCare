@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { clearOfflineCard } from '../lib/offline'
 
 /** This device's own data. Persisted so the patient never has to set up twice. */
 interface DeviceState {
@@ -35,8 +36,13 @@ export const useDevice = create<DeviceState>()(
       setMe: (p) => set((s) => ({ photo: p.photo !== undefined ? p.photo : s.photo, name: p.name ?? s.name })),
       setHelp: (p) => set((s) => ({ helpPhone: p.helpPhone ?? s.helpPhone, helpName: p.helpName ?? s.helpName })),
       setHelpChecked: (helpChecked) => set({ helpChecked }),
-      setPatient: (patientId, token) => set({ patientId, token }),
-      reset: () => set(initial),
+      setPatient: (patientId, token) => set((s) => {
+        // A new card on this phone: the offline copy of the old one must go
+        if (s.patientId && s.patientId !== patientId) void clearOfflineCard()
+        return { patientId, token }
+      }),
+      // Also removes the offline copy of the card (T16)
+      reset: () => { void clearOfflineCard(); set(initial) },
     }),
     { name: 'voxcare-device' },
   ),

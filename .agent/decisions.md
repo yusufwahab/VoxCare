@@ -1,0 +1,47 @@
+# Decisions
+
+## Approved
+
+| Date | Decision |
+|---|---|
+| 2026-11-25 | Work on `dev`; PR target `main`. Standing approval to commit and push verified milestones to `origin/dev` |
+| 2026-11-25 | T0 accepted. T1 accepted as a **partial** mitigation of S1, not a full fix |
+| 2026-11-25 | `Hospital.tsx` PIN screen error handling (shows the server message on 429/400/503) approved |
+| 2026-11-25 | In-memory rate limiting; run a single Render instance |
+| 2026-11-25 | `X-Forwarded-For` read only from a private peer, last entry only; IPv6 grouped by /64 |
+| 2026-11-25 | Wrong PIN keeps returning `200 {doctor: null}` (no frontend change) |
+| 2026-11-25 | Public demo PIN `1234` refused when `NODE_ENV` or `VERCEL_ENV` is `production` |
+| 2026-11-25 | Spec deviations kept as built: email alerts instead of SMS; join link instead of the "Check" tick/cross; React 19 |
+| 2026-11-25 | No automatic dependency upgrades (`npm audit fix --force` would downgrade majors) |
+| 2026-11-25 | T2: no schema change. The join token carries its issue time (`j1_<ms base36>_<48 hex>`); legacy tokens fall back to `created_at`, which is correct because they were only issued at creation. TTL 72 h |
+| 2026-11-25 | T2: re-invite is refused once a help person has joined (no silent replacement of an alert recipient) |
+| 2026-11-25 | 5xx logs record the request path only, never the query string |
+| 2026-11-25 | T3 limits: patient create 5/h per client + 100/h global; briefing 10/10 min; join 10/15 min; alert 10/10 min per client and 1 email per patient per 10 min. Emergency reads never limited |
+| 2026-11-25 | T4: 5xx messages hidden unless `HttpError(..., expose = true)` (doctor sign-in 503, join save error). Unapproved preflight gets 403 |
+| 2026-11-25 | `server/index.ts` only listens; the handler moved to `server/app.ts` for tests |
+| 2026-11-25 | T8 without migration: retry-safe (facts matched by id or type+value, visit id from the client, per-patient save queue) instead of a transaction. Values over 80 chars are rejected, not cut. One verified blood group per patient (409 until removed) |
+| 2026-11-25 | Alerts: a parallel request waits for the in-flight one; invalid coordinates are dropped, never block the alert |
+| 2026-11-25 | Briefing text shared in `shared/` (uploaded to Vercel and Render) instead of two synced copies |
+| 2026-11-25 | The server alone triggers briefing regeneration (patient create, self facts, verify); the client never does |
+| 2026-11-25 | Timeouts: Brevo 10 s, YarnGPT 15 s, audio download 30 s; browser alert and save requests 20 s |
+| 2026-11-25 | No AI attribution in commits or PRs (`attribution.commit` / `attribution.pr` = `""` in `~/.claude/settings.json`); short plain commit messages, concise bodies |
+| 2026-11-25 | T16: offline data kept by the app (`src/lib/offline.ts`), not service worker rules. Only the device's own card (patient id matches the persisted one); 7-day expiry; refreshed on Home and the emergency page; cleared on reset, a new card, or a 404. Old `vc-emergency` / `vc-briefings` caches deleted on start. Shows no "saved copy" label (would be a UI change; ask first) |
+| 2026-11-25 | T20: GitHub Actions on `pull_request` into `main` only (not on push), `contents: read`, dummy env, no secrets, no deploy |
+| 2026-11-25 | **Scope for submission (collaborator):** deliver the original working solution; document, do not build, the atomic visit save migration (P1), doctor auth redesign (D1), patient authorisation codes (P2/D3), card deletion and revocation (D2), SMS (D4) and other architecture changes |
+| 2026-11-25 | Merge of `main` into `dev` (`d32f172`), resolutions: **verify** keeps dev's validation and retry-safe fact saving; a visit already created by `/api/visit` is closed (`status`, `ended_at`, `summary`; event transcript untouched), otherwise inserted once. **join** keeps the atomic single-use link and adopts main's `{ emailed }` reply (waits for the welcome email; logs no address). **server** routes live in `server/app.ts`, plus `visit` and `visit-events`. **App** keeps reduced motion and adds main's JoinPrompt and `/v` routes. **EndVisit/api** use main's `finishVisit` and `v.end()`, with dev's 20 s timeout and error/retry; no client briefing trigger (server only). **README** keeps both. **limit.ts** (main) now uses dev's client address helper, so a fake `X-Forwarded-For` cannot reset the visit-code limit |
+| 2026-11-25 | Offline emergency page shows "Saved on this phone on <date>. No connection, so this may not be up to date." when it uses the saved copy, and "No connection" (not "card not found") when it has none. Small text only, existing styles |
+
+## Proposals awaiting approval
+
+- **P1 (T8 atomicity, migration):** full proposal in [proposals/P1-atomic-visit-save.md](proposals/P1-atomic-visit-save.md). Summary: `create unique index facts_patient_type_value on facts (patient_id, type, lower(value))` plus a `security definer` function `save_visit(doctor uuid, patient uuid, visit uuid, facts jsonb, remove uuid[], transcript jsonb, summary text)` that does the updates, inserts (`on conflict do update`), deletes and visit insert (`on conflict (id) do nothing`) in one transaction; `api/verify.ts` calls it with `db().rpc()`. Needed because supabase-js has no transactions. Clean duplicate facts before creating the index. Test on a copy first, never on production directly.
+- **P2 (T6 patient authorisation):** see handoff.
+- **Deferred until after submission (session 5 scope decision; were pending approval in session 4):** atomic medical record transactions (P1), doctor authentication redesign (D1), patient authorisation codes (P2/D3), patient card deletion and revocation (D2). Do not implement until approved.
+
+## Deferred (need team approval; keep in roadmap)
+
+- **D1 (S1 full fix):** MDCN number + longer PIN sign-in, salted scrypt PIN hash with migration, persistent per-doctor lockout and rate limits.
+- **D2 (T7):** build "Delete my card" and emergency-link revocation?
+- **D3 (T6):** how the patient authorises a doctor (confirm on the patient's own phone, or a code from the patient's card).
+- **D4 (T14):** Termii SMS vs email for family alerts; needs a Termii key and sender ID.
+- Atomic fact updates (T8) via a Postgres function: needs migration approval.
+- New dependencies or env vars: T5, T19, T21, T23.
