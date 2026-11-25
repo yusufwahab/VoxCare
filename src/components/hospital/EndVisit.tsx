@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Plus, Trash2, X } from 'lucide-react'
 import { Badge, Eyebrow, PillButton, cx } from '../ui'
-import { getFactsForDoctor, saveVerifiedFacts, saveWalkInVisit } from '../../lib/api'
+import { getFactsForDoctor, saveErrorMessage, saveVerifiedFacts, saveWalkInVisit } from '../../lib/api'
 import { FACT_LABEL, type Fact, type FactType } from '../../lib/types'
 import { useStaff } from '../../store/device'
 import { useVisit } from '../../store/visit'
@@ -17,6 +17,9 @@ export function EndVisit({ onClose, onFinished }: { onClose: () => void; onFinis
   const [rows, setRows] = useState<Row[]>([])
   const [step, setStep] = useState<'summary' | 'verify' | 'saved'>('summary')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  // One id per visit: a retry after a failed save updates the same records instead of adding new ones
+  const [visitId] = useState(() => crypto.randomUUID())
   const [newType, setNewType] = useState<FactType>('condition')
   const [newValue, setNewValue] = useState('')
 
@@ -38,21 +41,31 @@ export function EndVisit({ onClose, onFinished }: { onClose: () => void; onFinis
   }
 
   const save = async () => {
+    if (saving) return
     setSaving(true)
+    setSaveError('')
     const keep = rows.filter((r) => !r.removed && r.confirmed)
-    if (v.patientId) {
-      await saveVerifiedFacts({
-        patientId: v.patientId, doctorId: doctor.id,
-        facts: keep.map((r) => ({ id: r.isNew ? undefined : r.id, type: r.type, value: r.value })),
-        remove: rows.filter((r) => r.removed && !r.isNew).map((r) => r.id),
-        transcript: v.transcript, summary,
-      })
-    } else {
-      await saveWalkInVisit(doctor.id, v.transcript, summary)
+    try {
+      if (v.patientId) {
+        await saveVerifiedFacts({
+          patientId: v.patientId, doctorId: doctor.id, visitId,
+          facts: keep.map((r) => ({ id: r.isNew ? undefined : r.id, type: r.type, value: r.value })),
+          remove: rows.filter((r) => r.removed && !r.isNew).map((r) => r.id),
+          transcript: v.transcript, summary,
+        })
+      } else {
+        await saveWalkInVisit(doctor.id, visitId, v.transcript, summary)
+      }
+      // Only after the server confirmed every write
+      setStep('saved')
+    } catch (e) {
+      // Keep everything on screen so the doctor can fix it or try again
+      setSaveError(saveErrorMessage(e))
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
-    setStep('saved')
   }
+  const errorBox = saveError && <p role="alert" className="mt-6 rounded-[20px] bg-white p-4 font-semibold text-alert shadow-soft">Not saved. {saveError}</p>
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-ivory" role="dialog" aria-modal="true" aria-label="End visit">
@@ -75,8 +88,9 @@ export function EndVisit({ onClose, onFinished }: { onClose: () => void; onFinis
                 ))}
               </ol>
             )}
+            {!v.patientId && errorBox}
             <div className="mt-8 flex justify-end">
-              <PillButton onClick={() => (v.patientId ? setStep('verify') : save())} variant="dark" disabled={saving}>{v.patientId ? 'Verify facts' : 'Finish'}</PillButton>
+              <PillButton onClick={() => (v.patientId ? setStep('verify') : save())} variant="dark" disabled={saving}>{v.patientId ? 'Verify facts' : saving ? 'Saving' : saveError ? 'Try again' : 'Finish'}</PillButton>
             </div>
           </>
         )}
@@ -112,7 +126,8 @@ export function EndVisit({ onClose, onFinished }: { onClose: () => void; onFinis
                 </div>
               )}
             </div>
-            <div className="mt-8 flex justify-end"><PillButton onClick={save} disabled={saving} variant="dark">{saving ? 'Saving' : 'Save verified facts'}</PillButton></div>
+            {errorBox}
+            <div className="mt-8 flex justify-end"><PillButton onClick={save} disabled={saving} variant="dark">{saving ? 'Saving' : saveError ? 'Try again' : 'Save verified facts'}</PillButton></div>
           </>
         )}
 

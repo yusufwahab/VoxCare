@@ -22,7 +22,7 @@ interface MockPatient {
 }
 interface MockDb {
   patients: Record<string, MockPatient>
-  visits: { patient_id: string | null; doctor_id: string; transcript: TranscriptItem[]; ended_at: string }[]
+  visits: { id?: string; patient_id: string | null; doctor_id: string; transcript: TranscriptItem[]; ended_at: string }[]
   alerts: Record<string, number>
 }
 
@@ -89,6 +89,14 @@ async function call<T>(path: string, init: RequestInit | undefined, mock: () => 
 }
 
 const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) })
+/** Saves give up after this long, so the screen never waits forever */
+export const SAVE_TIMEOUT_MS = 20_000
+const postWithTimeout = (body: unknown): RequestInit => ({ ...post(body), signal: AbortSignal.timeout(SAVE_TIMEOUT_MS) })
+/** A readable message for a failed save */
+export const saveErrorMessage = (e: unknown) =>
+  e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError') ? 'The server took too long. Try again.'
+    : e instanceof TypeError ? 'Could not reach the server. Check the connection and try again.'
+      : e instanceof Error && e.message ? e.message : 'Could not save. Try again.'
 
 export const isMockBackend = () => backendUp === false
 
@@ -192,8 +200,9 @@ export async function addSelfFacts(patientId: string, token: string, facts: { ty
 
 export interface VerifiedFactInput { id?: string; type: FactType; value: string }
 
-export async function saveVerifiedFacts(args: { patientId: string; doctorId: string; facts: VerifiedFactInput[]; remove?: string[]; transcript: TranscriptItem[]; summary: string }): Promise<void> {
-  await call('/api/verify', post(args), () => {
+/** Throws if the server did not save everything. Safe to retry with the same visitId (no duplicates). */
+export async function saveVerifiedFacts(args: { patientId: string; doctorId: string; visitId: string; facts: VerifiedFactInput[]; remove?: string[]; transcript: TranscriptItem[]; summary: string }): Promise<void> {
+  await call('/api/verify', postWithTimeout(args), () => {
     const d = db()
     const p = d.patients[args.patientId]
     const at = new Date().toISOString()
@@ -206,16 +215,18 @@ export async function saveVerifiedFacts(args: { patientId: string; doctorId: str
       }
       p.facts = p.facts.filter((x) => !args.remove?.includes(x.id))
     }
-    d.visits.push({ patient_id: args.patientId, doctor_id: args.doctorId, transcript: args.transcript, ended_at: at })
+    d.visits = d.visits.filter((x) => x.id !== args.visitId)
+    d.visits.push({ id: args.visitId, patient_id: args.patientId, doctor_id: args.doctorId, transcript: args.transcript, ended_at: at })
     save(d)
   })
   void requestBriefing(args.patientId)
 }
 
-export async function saveWalkInVisit(doctorId: string, transcript: TranscriptItem[], summary: string): Promise<void> {
-  await call('/api/verify', post({ patientId: null, doctorId, facts: [], transcript, summary }), () => {
+export async function saveWalkInVisit(doctorId: string, visitId: string, transcript: TranscriptItem[], summary: string): Promise<void> {
+  await call('/api/verify', postWithTimeout({ patientId: null, doctorId, visitId, facts: [], transcript, summary }), () => {
     const d = db()
-    d.visits.push({ patient_id: null, doctor_id: doctorId, transcript, ended_at: new Date().toISOString() })
+    d.visits = d.visits.filter((x) => x.id !== visitId)
+    d.visits.push({ id: visitId, patient_id: null, doctor_id: doctorId, transcript, ended_at: new Date().toISOString() })
     save(d)
   })
 }
