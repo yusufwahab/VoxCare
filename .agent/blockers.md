@@ -17,9 +17,12 @@
 - **W10 Local development writes to production.** `vite.config.ts` loads `.env` into the dev server, and `.env` holds the production `SUPABASE_URL` and service role key (names checked, values not printed). Running `npm run dev` and creating a patient or saving a visit writes to production and can send real Brevo emails and paid YarnGPT jobs. Use a separate Supabase project in `.env` for development. Tests are safe: they refuse to run unless every key is a dummy (`test/setup.ts`).
 - **W5** With `DEMO_MODE=true`, the demo teammate's phone number is visible in the deployed site's code (by design).
 
-## PR blocker (found 2026-11-25 13:10)
+## PR blocker B1: resolved 2026-11-25 (session 5)
 
-**B1 `main` has moved on.** `origin/main` is at `b93a477` ("added doctors and patients", after `307f824` "third commit"): 33 files, about +1,900/-380 lines, including new endpoints (`api/visit.ts`, `api/visit-events.ts`, `api/_lib/limit.ts`), a new visit store (`src/visit/`) and `supabase/schema.sql` changes. Merging `dev` into `main` conflicts in 7 files: `README.md`, `api/join.ts`, `api/verify.ts`, `server/index.ts`, `src/App.tsx`, `src/components/hospital/EndVisit.tsx`, `src/lib/api.ts`. The new endpoints have none of the T2–T13 hardening yet. Before a PR: merge `origin/main` into `dev` (no rebase, no force), resolve with the collaborator's intent, re-run every check, and review the new endpoints and schema changes. Needs the user's go-ahead.
+`origin/main` (`b93a477`) merged into `dev` in `d32f172` (backup: local branch `backup/dev-before-main-merge` at `b621077`). How each conflict was resolved is in [decisions.md](decisions.md). `main` itself was not touched.
+
+- **W11 Schema needed by the merged visit code.** `main`'s one/two-device visits need `visits.code`, `visits.mode`, `visits.status` and the `append_visit_events` function from `supabase/schema.sql`. Without them, starting a visit fails. Whether the production database already has them is unknown from here: the owner must check (and apply them, on a copy first) before deploying. Not done by us (no production database changes).
+- **Push:** GitHub connections are intermittent from this machine. If `git status` shows `dev` ahead, run `git push origin dev` (never force).
 
 ## Open security issues
 
@@ -28,8 +31,8 @@
 | S1 | High | Doctor PIN brute force (4-digit, PIN-only, unsalted SHA-256) | **Partially mitigated** (T1). Global limit can block all doctors for 15 min; counts reset on restart. Full fix: D1 |
 | S2 | High | Join link never expires and can be reused, so alerts and location can be redirected | **Fixed** (T2): single-use, atomic, 72 h expiry, token-protected replacement. Join tokens are still stored in plain text (lookup by value); hashing them is a possible follow-up |
 | S3 | Med-High | No abuse limits; unauthenticated patient creation runs paid YarnGPT jobs | **Mitigated** (T3): per-client and global limits. In memory, single instance; many addresses can still use the global cap (blocks sign-up for up to 1 h) |
-| S4 | Medium | Doctor access to patients not authorised on the server | Open: T6, blocked on D3 |
-| S5 | Medium | Emergency URL is a permanent key with no revocation | Open: T7, blocked on D2 |
+| S4 | Medium | Doctor access to patients not authorised on the server | Open, **deferred until after submission** (T6) |
+| S5 | Medium | Emergency URL is a permanent key with no revocation | Open, **deferred until after submission** (T7) |
 | S6 | Low | Alert rate-limit race; client-chosen location | **Fixed** for one instance (T3, T12). Location is range-checked but still client-chosen (cannot be verified) |
 | S7 | Low | 500 errors return internal messages | **Fixed** (T4) |
 | S8 | Low | Sessions signed with the service role key; no revocation | Open: T5 |
@@ -43,7 +46,10 @@ C1 fixed (T9) · C2 **partially** fixed (T8): validated and retry-safe, but a fa
 ## Known limitations
 
 - **Offline copy (T16):** readable by anyone with the unlocked phone; a stale copy (up to 7 days) is shown with no "saved copy" label when offline; a responder's phone has no offline copy. Deleting a card (T7) must also call `clearOfflineCard()` (the 404 path does this on the next online open).
-- No browser or device tests: EndVisit error/retry (T9), reduced motion (T25) and the consent cards (T26) are verified by type check, lint and server-render tests only. Check on a phone before the demo.
+- **Visit links (from main):** anyone who knows a visit id can listen on its Realtime channel (README "Visit modes"). The 6-digit code lookup is limited to 30 per minute per client.
+- **Lighthouse (local, mock API, no compression):** landing page performance 49 to 79 between runs, LCP about 5.5 s (hero image on throttled mobile); emergency page 91. Accessibility 96 on both. Re-measure on the deployed site.
+- **axe:** remaining findings are colour contrast of palette colours (ember text on ivory, white on alert red, muted on sand) and Home has no `h1`. Not changed: palette and design are fixed by the spec; needs a design decision.
+- No physical device tests: EndVisit error/retry (T9), reduced motion (T25) and the consent cards (T26) are verified by type check, lint and server-render tests only. Check on a phone before the demo.
 - Briefing jobs are merged per patient in one process only (like the rate limits).
 
 - An expired join link is only renewed while the patient is on the setup Check screen. A patient who skipped that step has no button to resend later (no UI for it yet).

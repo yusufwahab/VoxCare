@@ -1,10 +1,12 @@
 # Requirements status
 
-Compares the original requirements ([voxcare_build_prompt.md](../voxcare_build_prompt.md), "the spec") with the code on `dev` as of 2026-11-25. Task IDs (T…), decisions (D…) and issues (S…, W…) are in [.agent/](../.agent/).
+Compares the original requirements ([voxcare_build_prompt.md](../voxcare_build_prompt.md), "the spec") with the code on `dev` as of 2026-11-25, after merging the collaborator's `main` (one- and two-device visits). Task IDs (T…), decisions (D…) and issues (S…, W…) are in [.agent/](../.agent/).
 
 **Legend.** **Done**: built, and checked by tests or by reading the code. **Partial**: part of it is built; the gap is stated. **Deviation**: built differently on purpose (approved in [.agent/decisions.md](../.agent/decisions.md)). **Outstanding**: not built, or not yet verified where the spec requires a real-device check.
 
-"Verified" in this file means tests, type check, lint, build or reading the code. Nothing below has been tested on a real phone, tablet or browser in this work. See the "Needs a real device" list at the end.
+"Verified" in this file means tests, type check, lint, build, reading the code, or a **headless browser run** (Microsoft Edge on a local mock API, see [.agent/progress.md](../.agent/progress.md) "Browser verification"). Nothing has been tested on a real phone or tablet. See "Needs a real device" at the end.
+
+**Scope for submission:** the original working solution. Architecture improvements are documented as outstanding, not built (atomic visit save, doctor sign-in redesign, patient authorisation codes, card deletion and revocation, SMS).
 
 ## Approved deviations
 
@@ -31,6 +33,8 @@ Compares the original requirements ([voxcare_build_prompt.md](../voxcare_build_p
 | §7.2 Consent, Me (camera / gallery / skip), Help (dial pad, contact picker where supported), Card (QR, Web NFC write or copy-link fallback) | `src/pages/setup/`, `src/pages/Card.tsx` |
 | §7.3 Home with "Add more about me" (self-reported facts) | `src/pages/Home.tsx` |
 | §7.4 Hospital mode: PIN login, scan or walk-in, Allow / No, teach clip and practice tap, 2×2 grid, body map with pins, regions and `?debug=regions`, pain kind / level / duration, sentence builder, doctor panel, picture questions and instructions, gestures, free text, End visit with fact verification | `src/pages/Hospital.tsx`, `src/components/`. Split view 3fr / 2fr on large screens |
+| §7.4 Hospital flow in a browser | Headless run: PIN, demo patient, Allow, teach clip, practice tap, body map pin "Right knee", sharp, very bad, 3 days, giving "I have a sharp pain in my right knee. It is very bad. It started 3 days ago." End visit save failure shows the error and Try again; the retry saves |
+| §7.4 Visit on one or two devices (from `main`) | One device verified in the browser. Two devices (Supabase Realtime, 6-digit code) not tested here |
 | §7.4 Sentence builder unit tests, 15+ combinations | 31 tests in `src/lib/sentence.test.ts` |
 | §7.5 Emergency page: alert on load with GPS (5 s timeout), photo, name, red pill, Play briefing in 4 languages with chips, verified / not-confirmed facts, Ask the patient, Call and WhatsApp location | `src/pages/Emergency.tsx` (alert channel: see deviations) |
 | §8 YarnGPT briefings: 4 languages, cache key, reuse, storage upload, background regeneration after setup and verify, English speech fallback | `api/_lib/briefing.ts` (tests in `api/briefingRuns.test.ts`); timeouts added (T11) |
@@ -43,7 +47,7 @@ Compares the original requirements ([voxcare_build_prompt.md](../voxcare_build_p
 
 | Spec | What is missing |
 |---|---|
-| §3, §8, §10 **Offline** ("caches the app, assets and briefing audio"; "works offline after the first load") | The app shell is precached. T16 now keeps the patient's **own** emergency card, its 4 MP3s and photo on their phone for 7 days, refreshed on Home and on the emergency page while online, and cleared on reset. Not covered: a **responder's** phone has no offline copy of someone else's card (by design: it is private data), and the first open needs a connection. Not yet checked in a real browser (Supabase storage must allow CORS downloads) |
+| §3, §8, §10 **Offline** (browser-checked on a mock API: own phone shows the saved card with "Saved on this phone on <date>" and plays the saved audio; a phone without a copy says "No connection"; a responder phone stores nothing) ("caches the app, assets and briefing audio"; "works offline after the first load") | The app shell is precached. T16 now keeps the patient's **own** emergency card, its 4 MP3s and photo on their phone for 7 days, refreshed on Home and on the emergency page while online, and cleared on reset. Not covered: a **responder's** phone has no offline copy of someone else's card (by design: it is private data), and the first open needs a connection. Not yet checked in a real browser (Supabase storage must allow CORS downloads) |
 | §5 "keep it simple but sensible" security | Open: doctor access is not authorised by the patient (S4, T6, D3), the emergency link cannot be revoked (S5, T7, D2), sessions are signed with the service role key (S8, T5) |
 | §7.4 End visit saves verified facts | Validated and safe to retry (T8, T9), but **not atomic**: a failure part-way leaves some facts saved until the doctor retries (P1, needs a migration) |
 | §7.1 Trust "you can delete anytime" | Shown on the landing and consent screens, but there is no delete function yet (T7, D2) |
@@ -53,12 +57,14 @@ Compares the original requirements ([voxcare_build_prompt.md](../voxcare_build_p
 
 | Spec | Status |
 |---|---|
-| §9 Termii SMS | Blocked on D4 (T14) |
-| §10 Lighthouse Performance 90+ and Accessibility 95+ on mobile | Not run: needs a browser (T27) |
-| §10 Every screen looks intentional at 375, 820, 1180 and 1440 px | Not checked in a browser (T27). Layouts use responsive classes; no visual test exists |
+| §9 Termii SMS | Deferred after submission; email is used (T14) |
+| §10 Lighthouse Performance 90+ and Accessibility 95+ on mobile | Local run (no compression, mock API): accessibility 96 on landing and emergency; performance emergency 91, **landing 49–79** (hero image LCP about 5.5 s on throttled mobile). Re-measure on the deployed site |
+| §10 Every screen looks intentional at 375, 820, 1180 and 1440 px | No horizontal overflow on 7 main routes at all 4 widths (headless). Visual quality not judged by a person |
+| §10 Good colour contrast | axe flags palette colours: ember text on ivory, white on alert red, muted on sand. Not changed (palette fixed by the spec); needs a design decision |
 | §10 Functional checks "on a real phone and tablet over HTTPS" | None done in this work. See below |
-| Delete card / revoke emergency link | T7, blocked on D2 |
-| Patient authorisation of doctors | T6, blocked on D3 |
+| Delete card / revoke emergency link | T7, deferred after submission |
+| Patient authorisation of doctors | T6, deferred after submission |
+| Atomic visit save (P1), doctor sign-in redesign (D1) | Deferred after submission; partial mitigations in place (T8, T1) |
 
 ## Needs a real device or browser
 

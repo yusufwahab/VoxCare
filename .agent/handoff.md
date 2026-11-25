@@ -1,6 +1,6 @@
 # Handoff (start here)
 
-Last updated: 2026-11-25 13:45 WAT, session 4 (after T16, T20, T15, T17, T27 static checks).
+Last updated: 2026-11-25, session 5 (main merged into dev, browser verification, final handoff).
 
 ## Read first
 
@@ -9,18 +9,15 @@ Last updated: 2026-11-25 13:45 WAT, session 4 (after T16, T20, T15, T17, T27 sta
 ## Where things stand
 
 - **Purpose:** help Deaf and speech-impaired Nigerians communicate with doctors and responders through pictures, a body map, spoken sentences, an emergency page that alerts family, and voice briefings in four languages.
-- **Architecture:** React PWA (`src/`, Vercel) → Node API (`server/index.ts` serving `api/*.ts`, Render) → Supabase, YarnGPT, Brevo. Patient device keeps a secret token; doctors get a 12 h HMAC session token.
-- **Branch:** `dev`. Session 4 commits not yet pushed (network). PR target `main` (untouched).
-- **Done:** T0 `fa32bbc`; T1 `76f367a` (**partial**, S1 not fully fixed); docs `47a09ec`, `8b70c7d`; T2 `dd9e5ac` (S2 fixed); T4 `41b3d5d` (S7, S9, S10 fixed; T18 done); T3 `4ebae50` (S3 mitigated); T8 `76359ed` (**partial**); T9 `d057bf2`; T12 `392a21d`; T22 `8f95a80` + `edf2808`; T11 `e3b8303`; T10 `2c98454`; T13 `52fc8a6`; T25 + T26 `a0465d3`.
-- **Session 4:** T16 `e8e6b95`, T20 `5c72183`, T17 `b0d334d`, T27 static checks `1f0201d`, docs (this commit). Requirements comparison: [docs/requirements-status.md](../docs/requirements-status.md).
-- **Push blocked again:** github.com resets the connection (fetch and push). Session 4 commits are local. First action: `git push origin dev` (never force).
-- **No AI attribution** in commits or PRs (AGENTS.md).
-- **Verification:** 274/274 tests, lint 0, `tsc -b` and `tsc -p api/tsconfig.json` 0 errors, build ok, no keys in the build.
-- **Time:** budget ends **15:40 WAT** on 2026-11-25; final checks and PR prep from 15:10.
+- **Architecture:** React PWA (`src/`, Vercel) → Node API (`server/index.ts` → `server/app.ts` → `api/*.ts`, Render) → Supabase, YarnGPT, Brevo. Visits (from `main`) are created on the server with a 6-digit code; two-device visits use Supabase Realtime in the browser.
+- **Branch:** `dev` includes `origin/main` (`b93a477`) since merge `d32f172`. Backup of pre-merge `dev`: local branch `backup/dev-before-main-merge`. `main` untouched. PR `dev` → `main` is for the collaborator to review and merge.
+- **Scope:** original working solution. Deferred and documented: P1 atomic visit save, D1 doctor sign-in redesign, P2/D3 patient authorisation codes, D2 card deletion and revocation, D4 SMS.
+- **Verification:** 300/300 tests, lint 0, both type checks, build ok. Headless Edge run on a mock API: see [progress.md](progress.md) "Browser verification". Requirements: [docs/requirements-status.md](../docs/requirements-status.md).
+- **Push:** GitHub connections are intermittent here. If `git status` shows `dev` ahead, `git push origin dev` (never force).
 
 ## Must know before deploying
 
-Set a private doctor PIN (W1), keep `NODE_ENV=production` (W2), single Render instance (W3), check `source: 'forwarded'` in logs (W4), list every frontend origin in `FRONTEND_URL` (W6), Vercel installs devDependencies (W8). Details in [blockers.md](blockers.md).
+**Apply the visit schema from `supabase/schema.sql` to the target database first (W11)**, set a private doctor PIN (W1), keep `NODE_ENV=production` (W2), single Render instance (W3), check `source: 'forwarded'` in logs (W4), list every frontend origin in `FRONTEND_URL` (W6), Vercel installs devDependencies (W8). Details in [blockers.md](blockers.md).
 
 ## Decisions
 
@@ -37,24 +34,28 @@ All small and kept to the existing design; listed so the PR review can accept or
 5. **Consent pictures (T26):** look the same but are no longer tappable or focusable (they did nothing).
 6. **Reduced motion (T25):** with the phone's reduce-motion setting on, motion animations are minimised.
 7. **Check screen (T2):** an expired link is replaced in the background; nothing visible changes.
-8. **Offline emergency page (T16):** on the patient's own phone without signal, the emergency page shows the saved card and plays the saved audio, where it used to show "This card was not found". The layout is unchanged and there is no "saved copy" label.
+8. **Offline emergency page (T16):** on the patient's own phone without signal, the emergency page shows the saved card and plays the saved audio, with one muted line: "Saved on this phone on <date>. No connection, so this may not be up to date." Without a saved copy it says "No connection" instead of "This card was not found".
+9. **Join page (merge):** after joining, the page says whether the welcome email was sent (from `main`).
 
 ## Exact next action
 
-0. **B1 first:** `main` moved (`b93a477`); `dev` conflicts in 7 files. See [blockers.md](blockers.md). Merge `origin/main` into `dev` with approval before preparing the PR.
+1. `git push origin dev` if anything is unpushed. Confirm the "Checks" workflow is green on the PR.
+2. Owner (yusufwahab): check W9 (what a `dev` push deploys), W11 (visit schema in the database), W1 (private PIN), then review and merge the PR.
+3. On real phones (cannot be done here): NFC write/read, camera QR scan, real welcome and alert emails, real YarnGPT audio, two-device visit over Realtime, iOS Safari, offline on a phone in airplane mode.
 
-1. `git push origin dev` (session 4 commits). Never force. Then confirm the PR's "Checks" workflow runs green on GitHub.
-2. **Team decisions:** P1 ([proposals/P1-atomic-visit-save.md](proposals/P1-atomic-visit-save.md)), P2/D3 (T6, below), D2 (T7), D4 (T14).
+### Outstanding to explain in the presentation
 
-### Next session
+- Family alerts are **email** (Brevo), not SMS; Termii is planned (D4).
+- Saving a visit is retry-safe but **not one database transaction** (P1, needs a migration).
+- Doctor sign-in is a 4-digit PIN with rate limits; MDCN + stronger PIN hashing is planned (D1).
+- Any signed-in doctor with a card id can read and update its facts; patient approval codes are planned (P2/D3).
+- "Delete anytime" is promised but not built; the emergency link cannot be revoked yet (D2).
+- Rate limits are in memory: run one Render instance (W3).
+- Landing page performance under throttled mobile is below 90 locally; palette contrast flagged by axe.
 
-**Pending collaborator approval (do not implement yet):** atomic medical record transactions (P1), doctor authentication redesign (D1), patient authorisation codes (P2/D3), card deletion and revocation (D2/T7). Also open: SMS vs email (D4/T14).
+### Reference
 
-**T16 offline is done in code; verify in a browser.** `npm run build && npx vite preview` with a **non-production** API (W10), or on the Vercel preview once W9 is checked. On the patient's phone: open Home online, then airplane mode, then open the card link: facts, photo and the 4 audio files must work. DevTools, Application, Cache Storage: only `vc-offline-card-v1` with one card JSON plus its MP3s and photo. On another phone that scans the card: no such cache. If audio fails, check Supabase storage CORS. Design note: offline shows no "saved copy" label (would be a UI change; ask first).
-
-**T27:** Lighthouse (mobile) and axe at 375 / 820 / 1180 / 1440 px on a preview build. Static checks and bundle size are done (`test/a11y.test.ts`; about 88 KB gzipped initial JS).
-
-**Optional (need approval for new dependencies):** T19 Playwright, T21 coverage, T23 remove `@vercel/node`. T5 needs a new env var.
+**T8 state:** validated, every DB error reported, retry-safe, not atomic (P1).
 
 **Final verification before the PR:** `npx vitest run`, `npx eslint .`, `npm run typecheck`, `npm run build`; scan `dist` and the full diff for `.env` values; on a phone check the setup flow, join link, emergency page + alert, EndVisit error and retry (stop the API to force one), and reduce motion; walk W1–W8 in [blockers.md](blockers.md); write the PR description into `main` (do not merge).
 
@@ -62,7 +63,7 @@ All small and kept to the existing design; listed so the PR review can accept or
 
 **T8 state:** validated, every DB error reported, retry-safe, not atomic (P1).
 
-**T6 recommendation (P2, not started, blocked on D3):** today the doctor's own phone taps "Allow", and any signed-in doctor with a patient id (it is in the public card QR) can read and change facts. Smallest real patient authorisation, no schema change:
+**T6 recommendation (P2, not started, deferred after submission):** today the doctor's own phone taps "Allow", and any signed-in doctor with a patient id (it is in the public card QR) can read and change facts. Smallest real patient authorisation, no schema change:
 - On the patient's phone (it holds the device token), a "Show to doctor" button calls `POST /api/visit-grant {patientId, token}` and shows a 6-digit code valid 10 min.
 - The doctor enters the code; the server checks it (single use, in memory like the limits, 5 tries) and returns a signed grant `doctorId.patientId.exp` (HMAC, 2 h).
 - `GET /api/facts` and `POST /api/verify` require that grant for that patient. The emergency page stays open (it is for responders).
