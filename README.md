@@ -71,7 +71,7 @@ Environment variables (Render, Environment tab):
 
 `NODE_VERSION=22`, `NODE_ENV=production`, `YARNGPT_API_KEY`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `DEMO_HELP_EMAIL`, `DEMO_HELP_PHONE`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and:
 
-- `FRONTEND_URL`: your Vercel address, e.g. `https://voxcare.vercel.app`. It is the only origin allowed to call the API (CORS) and it is the base of the links inside emails. Use a comma to allow more than one (for example a custom domain). No trailing slash.
+- `FRONTEND_URL`: your Vercel address, e.g. `https://voxcare.vercel.app`. It is the only origin allowed to call the API (CORS) and it is the base of the links inside emails. Use a comma to allow more than one (for example a custom domain). No trailing slash. In production only these origins are allowed; `http://localhost` and `127.0.0.1` are allowed only when `NODE_ENV` is not `production`. Vercel preview URLs are refused unless you list them.
 
 Check it: `https://<your-service>.onrender.com/health` should return `{"ok":true,"service":"voxcare-api"}`.
 
@@ -112,6 +112,22 @@ where id = 'd0c70000-0000-4000-8000-000000000001';
 - Database errors return `503` and do not count as attempts. Logs never contain PINs, hashes, tokens or client addresses.
 
 **Limitations.** The counts are kept in memory: a restart or redeploy clears them, and each server instance counts separately, so **run a single Render instance**. If a CDN or second proxy is put in front of Render, every user arrives from that proxy's address and shares one limit. A 4-digit PIN has only 10,000 possibilities, and the unsalted hash can be reversed instantly by anyone who can read the `doctors` table. Per-doctor lockout, longer PINs and a slow salted hash need a doctor identifier at sign-in; that change is proposed, not yet made.
+
+## API abuse limits and errors
+
+Limits per client address ([api/_lib/limits.ts](api/_lib/limits.ts)), answered with `429` and `Retry-After`:
+
+| Endpoint | Limit | Why |
+|---|---|---|
+| `POST /api/patient` | 5 per hour per client, 100 per hour in total | Each new patient starts 4 paid YarnGPT jobs |
+| `POST /api/briefing` | 10 per 10 min | Paid when the facts changed |
+| `POST /api/join` (join and new link) | 10 per 15 min | Stops link guessing and spam |
+| `POST /api/alert` | 10 per 10 min per client; 1 email per patient per 10 min | Notifies a person. A repeat within 10 min returns `{ sent: true, reason: "rate_limited" }`, not an error |
+| `GET /api/emergency` | none | Reading emergency information is never limited |
+
+Counts are taken before any database or network call, so parallel requests cannot get past them. They use the same client identification and have the same limits as doctor sign-in below (in memory, single Render instance).
+
+Server errors return a generic message (`Something went wrong. Please try again.`); `4xx` messages are unchanged. Logs record the path without the query string, database error codes (not messages) and provider status codes (not response bodies). Patient ids, tokens and emails are not logged.
 
 ## Tests
 

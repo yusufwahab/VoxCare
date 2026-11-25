@@ -6,6 +6,8 @@
 - **W2** Keep `NODE_ENV=production` on Render, or `1234` is accepted again.
 - **W3** Run exactly one Render instance (rate limits are in memory).
 - **W4** After deploy: enter 5 wrong PINs from one phone; Render logs must show `[doctor-login] rate limited { scope: 'client', source: 'forwarded' }`. If `source: 'socket'`, all users share one limit: fix before relying on it.
+- **W6** CORS allows only `FRONTEND_URL` origins in production. Add a custom domain or preview URL there (comma separated) or the browser blocks it.
+- **W7** If every user gets 429 at once, Render is not passing the client address (see W4): all users share one limit.
 - **W5** With `DEMO_MODE=true`, the demo teammate's phone number is visible in the deployed site's code (by design).
 
 ## Open security issues
@@ -14,14 +16,14 @@
 |---|---|---|---|
 | S1 | High | Doctor PIN brute force (4-digit, PIN-only, unsalted SHA-256) | **Partially mitigated** (T1). Global limit can block all doctors for 15 min; counts reset on restart. Full fix: D1 |
 | S2 | High | Join link never expires and can be reused, so alerts and location can be redirected | **Fixed** (T2): single-use, atomic, 72 h expiry, token-protected replacement. Join tokens are still stored in plain text (lookup by value); hashing them is a possible follow-up |
-| S3 | Med-High | No abuse limits; unauthenticated patient creation runs paid YarnGPT jobs | Open: T3 |
+| S3 | Med-High | No abuse limits; unauthenticated patient creation runs paid YarnGPT jobs | **Mitigated** (T3): per-client and global limits. In memory, single instance; many addresses can still use the global cap (blocks sign-up for up to 1 h) |
 | S4 | Medium | Doctor access to patients not authorised on the server | Open: T6, blocked on D3 |
 | S5 | Medium | Emergency URL is a permanent key with no revocation | Open: T7, blocked on D2 |
-| S6 | Low | Alert rate-limit race; client-chosen location | Open: T12 |
-| S7 | Low | 500 errors return internal messages | Open: T4 |
+| S6 | Low | Alert rate-limit race; client-chosen location | Race fixed for one instance (T3). Location still client-chosen and unvalidated: T12 |
+| S7 | Low | 500 errors return internal messages | **Fixed** (T4) |
 | S8 | Low | Sessions signed with the service role key; no revocation | Open: T5 |
-| S9 | Low | CORS allows `http://localhost:*` in production | Open: T4 |
-| S10 | Low | `/api/test-email` guarded only by `NODE_ENV` | Open: T4 |
+| S9 | Low | CORS allows `http://localhost:*` in production | **Fixed** (T4). CORS is not authentication: non-browser clients can still call the API |
+| S10 | Low | `/api/test-email` guarded only by `NODE_ENV` | **Fixed** (T4): not routed in production (`NODE_ENV` or `VERCEL_ENV`) and the handler refuses too |
 
 ## Open correctness issues
 
@@ -34,4 +36,5 @@ C1 EndVisit stuck on "Saving" (T9) · C2 verify ignores database errors and fact
 
 - Test network guard does not cover DNS, UDP, child processes or worker threads.
 - No browser (jsdom) test environment, so UI changes are verified by type check and lint only.
-- `server/index.ts` starts listening on import, so it has no tests yet (T18).
+- The emergency page and patient lookup (`GET`) are not rate limited by design; they rely on unguessable UUIDs (S5).
+- A failed alert email releases the per-patient count; if the email was sent but the database insert failed, a retry can send a second email.

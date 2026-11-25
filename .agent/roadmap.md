@@ -8,8 +8,8 @@ Security IDs (S1–S10) and code issues (C1–C6) are described in [blockers.md]
 | T0 | Safe test foundation: network guard, Supabase fake, dummy env, resets | Mandatory | **Done** `fa32bbc` |
 | T1 | Doctor login brute-force protection (S1) | Mandatory | **Partial** `76f367a`. Remaining work deferred: D1 |
 | T2 | Help-person join link: **expiring and atomically consumed**, token-protected re-invite (S2) | Mandatory | **Done** `dd9e5ac` |
-| T3 | Per-client abuse limits: patient create, briefing, join, alert (S3) | Mandatory | To do |
-| T4 | Generic 500s; localhost CORS only outside production; test-email off in production (S7, S9, S10) | Mandatory | To do |
+| T3 | Per-client abuse limits: patient create, briefing, join, alert (S3) | Mandatory | **Done** `4ebae50` |
+| T4 | Generic 500s; localhost CORS only outside production; test-email off in production (S7, S9, S10) | Mandatory | **Done** `41b3d5d` |
 | T5 | Separate `SESSION_SECRET` for session signing (S8) | Optional | To do (new env var: approval) |
 | T6 | **Meaningful patient authorisation** for doctor access, not just a doctor-created record (S4) | Mandatory | Blocked: D3 |
 | T7 | Delete my card, revoke emergency link (S5, "Delete anytime") | Needs approval | Blocked: D2 |
@@ -17,13 +17,13 @@ Security IDs (S1–S10) and code issues (C1–C6) are described in [blockers.md]
 | T9 | EndVisit: visible save errors and retry (C1) | Mandatory | To do |
 | T10 | Test that the two `briefingText` copies stay identical (C5) | Mandatory | To do |
 | T11 | Timeouts on Brevo and YarnGPT calls (emergency banner can hang) | Mandatory | To do |
-| T12 | Alert rate-limit race, location range validation (S6) | Optional | To do |
+| T12 | Alert rate-limit race, location range validation (S6) | Optional | **Partial**: race fixed in memory by T3 (single instance); location range validation to do |
 | T13 | Remove duplicate briefing trigger after setup (C6) | Optional | To do |
 | T14 | Termii SMS alerts (spec §9; code sends email) | Needs approval | Blocked: D4 |
 | T15 | Document the changed setup "Check" step | Needs approval | To do |
 | T16 | Offline cache for briefing audio and emergency data (C3), **handling sensitive medical data in caches, expiry and revocation** | Mandatory | To do |
 | T17 | Handler tests for every endpoint (incl. emergency never returns transcripts) | Mandatory | Ongoing with each fix |
-| T18 | Server tests (export the handler from `server/index.ts`) | Optional | To do |
+| T18 | Server tests (export the handler from `server/index.ts`) | Optional | **Done** with T4 (`server/app.ts`, `server/app.test.ts`) |
 | T19 | Playwright end-to-end tests | Optional | To do (new dependency: approval) |
 | T20 | CI on **pull requests into `main`**: test, lint, build, backend type check | Optional | To do |
 | T21 | Coverage reporting (`@vitest/coverage-v8`) | Optional | To do (new dependency: approval) |
@@ -42,4 +42,4 @@ Security IDs (S1–S10) and code issues (C1–C6) are described in [blockers.md]
 
 ## Planned order for the remaining budget
 
-~~T2~~ → T8 + T9 → T11 → T4 → T3 → T22 + T25 + T26 → T16 (if time) → final verification and PR description.
+~~T2~~ → ~~T4 + T3~~ → T8 + T9 → T11 → T22 + T25 + T26 → T16 (if time) → final verification and PR description.

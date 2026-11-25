@@ -16,6 +16,9 @@
 | 2026-11-25 | T2: no schema change. The join token carries its issue time (`j1_<ms base36>_<48 hex>`); legacy tokens fall back to `created_at`, which is correct because they were only issued at creation. TTL 72 h |
 | 2026-11-25 | T2: re-invite is refused once a help person has joined (no silent replacement of an alert recipient) |
 | 2026-11-25 | 5xx logs record the request path only, never the query string |
+| 2026-11-25 | T3 limits: patient create 5/h per client + 100/h global; briefing 10/10 min; join 10/15 min; alert 10/10 min per client and 1 email per patient per 10 min. Emergency reads never limited |
+| 2026-11-25 | T4: 5xx messages hidden unless `HttpError(..., expose = true)` (doctor sign-in 503, join save error). Unapproved preflight gets 403 |
+| 2026-11-25 | `server/index.ts` only listens; the handler moved to `server/app.ts` for tests |
 
 ## Deferred (need team approval; keep in roadmap)
 
