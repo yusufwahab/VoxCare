@@ -13,7 +13,7 @@ async function brevoSend(msg: { to: { email: string; name?: string }; subject: s
       textContent: msg.textContent,
     }),
   })
-  if (!res.ok) throw new HttpError(502, `Brevo error ${res.status}: ${(await res.text()).slice(0, 200)}`)
+  if (!res.ok) throw new HttpError(502, `Brevo error ${res.status}`)
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)

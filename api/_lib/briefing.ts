@@ -1,5 +1,5 @@
 import { env, HttpError } from './env.js'
-import { db, loadPatient, sha256 } from './supabase.js'
+import { db, dbFailed, loadPatient, sha256 } from './supabase.js'
 import { briefingText, type FactRow } from './briefingText.js'
 
 export type Lang = 'en' | 'yo' | 'ig' | 'ha'
@@ -56,7 +56,7 @@ async function synthesise(text: string, lang: Lang, voice: string, cacheKey: str
   if (lang !== 'en') payload.target_language = lang
   console.log('[briefing] YarnGPT call', lang, voice, cacheKey.slice(0, 10))
   const start = await fetch(`${YARN}/tts`, { method: 'POST', headers, body: JSON.stringify(payload) })
-  if (start.status !== 202 && !start.ok) throw new HttpError(502, `YarnGPT tts error ${start.status}: ${(await start.text()).slice(0, 200)}`)
+  if (start.status !== 202 && !start.ok) throw new HttpError(502, `YarnGPT tts error ${start.status}`)
   const { job_id } = (await start.json()) as { job_id: string }
 
   for (let i = 0; i < 40; i++) {
@@ -110,7 +110,7 @@ export async function ensureBriefings(rawPatientId: string): Promise<{ generated
       if (!exists) {
         const mp3 = await synthesise(text, lang, voice, cacheKey)
         const { error } = await db().storage.from('briefings').upload(path, mp3, { contentType: 'audio/mpeg', upsert: true })
-        if (error) throw new HttpError(500, `Storage upload failed: ${error.message}`)
+        if (error) dbFailed('briefing audio upload', error as { code?: string })
         generated.push(lang)
       } else reused.push(lang)
 

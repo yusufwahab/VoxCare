@@ -26,6 +26,7 @@ export default route(async (req) => {
   })
 
   await db().from('alerts').insert({ patient_id: patient.id, lat: hasLoc ? lat : null, lng: hasLoc ? lng : null })
-  console.log('[alert] emailed for', patient.id)
+  // The patient id is the emergency link, so it is never logged
+  console.log('[alert] emailed')
   return { sent: true }
 })

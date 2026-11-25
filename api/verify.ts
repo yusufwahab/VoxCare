@@ -2,6 +2,7 @@ import { waitUntil } from '@vercel/functions'
 import { route, body } from './_lib/http.js'
 import { db, loadPatient, requireDoctor } from './_lib/supabase.js'
 import { ensureBriefings } from './_lib/briefing.js'
+import { safeMessage } from './_lib/env.js'
 
 interface VerifyBody {
   patientId: string | null
@@ -35,6 +36,6 @@ export default route(async (req) => {
 
   await db().from('visits').insert({ patient_id: patientDbId, doctor_id: doctorId, started_at: now, ended_at: now, transcript: b.transcript ?? [], summary: (b.summary ?? '').slice(0, 4000) })
 
-  if (patientDbId) waitUntil(ensureBriefings(patientDbId).catch((e) => console.error('[briefing] background failed', e.message)))
+  if (patientDbId) waitUntil(ensureBriefings(patientDbId).catch((e) => console.error('[briefing] background failed', safeMessage(e))))
   return { ok: true }
 })

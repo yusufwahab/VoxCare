@@ -20,7 +20,7 @@ interface Invite { id: string; name: string | null; photo_url: string | null; he
 
 function dbFailed(where: string, code?: string): never {
   console.error(`[join] database error during ${where}`, { code })
-  throw new HttpError(500, FAILED)
+  throw new HttpError(500, FAILED, undefined, true)
 }
 
 async function byJoinToken(token: unknown): Promise<Invite & { token: string }> {

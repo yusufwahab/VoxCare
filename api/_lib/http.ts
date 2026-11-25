@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { HttpError } from './env.js'
+import { GENERIC_ERROR, HttpError, safeMessage } from './env.js'
 
 type Handler = (req: VercelRequest) => Promise<unknown>
 
@@ -12,16 +12,19 @@ export function route(handler: Handler) {
       res.status(200).json(out ?? {})
     } catch (e) {
       const status = e instanceof HttpError ? e.status : 500
-      const message = e instanceof Error ? e.message : 'Server error'
-      // Log the path only: query strings can carry join links and device tokens
-      if (status >= 500) console.error('[api]', (req.url ?? '').split('?')[0], message)
+      // Log the path only: query strings carry join links, device tokens and patient ids.
+      // Unexpected errors log only their type: their messages can echo request data.
+      if (status >= 500) console.error('[api]', (req.url ?? '').split('?')[0], safeMessage(e))
       if (e instanceof HttpError && e.headers) for (const [name, value] of Object.entries(e.headers)) res.setHeader(name, value)
-      res.status(status).json({ error: message })
+      res.status(status).json({ error: e instanceof HttpError && e.expose ? e.message : GENERIC_ERROR })
     }
   }
 }
 
-export const body = <T>(req: VercelRequest): T => (typeof req.body === 'string' ? JSON.parse(req.body) : (req.body ?? {})) as T
+export const body = <T>(req: VercelRequest): T => {
+  if (typeof req.body !== 'string') return (req.body ?? {}) as T
+  try { return JSON.parse(req.body) as T } catch { throw new HttpError(400, 'Invalid request') }
+}
 
 /** https://<domain> of this deployment, for links inside emails */
 export const baseUrl = (req: VercelRequest): string => {

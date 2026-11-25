@@ -72,7 +72,7 @@ export default route(async (req) => {
     perClient.release(key)
     everyone.release(EVERYONE)
     console.error('[doctor-login] database error', { code: error.code ?? 'unknown' })
-    throw new HttpError(503, 'Sign-in is not available right now. Try again soon.')
+    throw new HttpError(503, 'Sign-in is not available right now. Try again soon.', undefined, true)
   }
   if (!data || data.length !== 1) {
     // Two verified doctors sharing a PIN would make the login ambiguous, so refuse it like a wrong PIN
