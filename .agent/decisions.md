@@ -19,6 +19,13 @@
 | 2026-11-25 | T3 limits: patient create 5/h per client + 100/h global; briefing 10/10 min; join 10/15 min; alert 10/10 min per client and 1 email per patient per 10 min. Emergency reads never limited |
 | 2026-11-25 | T4: 5xx messages hidden unless `HttpError(..., expose = true)` (doctor sign-in 503, join save error). Unapproved preflight gets 403 |
 | 2026-11-25 | `server/index.ts` only listens; the handler moved to `server/app.ts` for tests |
+| 2026-11-25 | T8 without migration: retry-safe (facts matched by id or type+value, visit id from the client, per-patient save queue) instead of a transaction. Values over 80 chars are rejected, not cut. One verified blood group per patient (409 until removed) |
+| 2026-11-25 | Alerts: a parallel request waits for the in-flight one; invalid coordinates are dropped, never block the alert |
+
+## Proposals awaiting approval
+
+- **P1 (T8 atomicity, migration):** `create unique index facts_patient_type_value on facts (patient_id, type, lower(value))` plus a `security definer` function `save_visit(doctor uuid, patient uuid, visit uuid, facts jsonb, remove uuid[], transcript jsonb, summary text)` that does the updates, inserts (`on conflict do update`), deletes and visit insert (`on conflict (id) do nothing`) in one transaction; `api/verify.ts` calls it with `db().rpc()`. Needed because supabase-js has no transactions. Clean duplicate facts before creating the index. Test on a copy first, never on production directly.
+- **P2 (T6 patient authorisation):** see handoff.
 
 ## Deferred (need team approval; keep in roadmap)
 

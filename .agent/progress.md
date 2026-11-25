@@ -17,6 +17,13 @@
 | `9942591` | docs | T2 hash in progress and roadmap |
 | `41b3d5d` | security | Generic 5xx, log hygiene, production CORS, test-email off, testable server (T4, T18) |
 | `4ebae50` | security | Per-endpoint abuse limits with Retry-After (T3) |
+| `867f6e6` | docs | Progress and handoff after T3/T4 |
+| `76359ed` | fix | Validate medical records before saving (T8, partial). Body says 27 tests; it is 37 |
+| `d057bf2` | fix | Handle failed medical record saves (T9) |
+| `392a21d` | fix | Emergency alert reliability (T12) |
+| `8f95a80` | build | Backend type check in the build (T22) |
+
+**Push blocked:** github.com resets every connection from this machine since 12:30 WAT. Commits from `41b3d5d` on are local only. Run `git push origin dev` when the network is back.
 
 ## Verification log
 
@@ -28,5 +35,6 @@
 | T2 `dd9e5ac` | 150/150 | ok | ok / ok | ok | 21 of 34 new join tests fail on the old code. Build: no keys |
 | T4 `41b3d5d` | 173/173 | ok | ok / ok | n/a | Verified on its own in a temporary worktree |
 | T3 `4ebae50` | 190/190 | ok | ok / ok | ok | Build: no keys |
+| T8, T9, T12, T22 `8f95a80` | 230/230 | ok | ok / ok | ok | A deliberate backend type error fails `npm run build` (exit 2). Commits checked on the final state, not one by one |
 
-Test files: `test/networkGuard.test.ts` (13), `api/doctor-login.test.ts` (36), `api/_lib/clientIp.test.ts` (23), `api/_lib/rateLimit.test.ts` (5), `src/lib/api.test.ts` (4), plus the original `src/lib/sentence.test.ts` (31) and `api/email.test.ts` (4), `api/join.test.ts` (34), `api/security.test.ts` (10), `server/app.test.ts` (13), `api/limits.test.ts` (17).
+Test files: `test/networkGuard.test.ts` (13), `api/doctor-login.test.ts` (36), `api/_lib/clientIp.test.ts` (23), `api/_lib/rateLimit.test.ts` (5), `src/lib/api.test.ts` (4), plus the original `src/lib/sentence.test.ts` (31) and `api/email.test.ts` (4), `api/join.test.ts` (34), `api/security.test.ts` (10), `server/app.test.ts` (13), `api/limits.test.ts` (20), `api/verify.test.ts` (37).

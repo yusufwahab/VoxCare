@@ -8,6 +8,7 @@
 - **W4** After deploy: enter 5 wrong PINs from one phone; Render logs must show `[doctor-login] rate limited { scope: 'client', source: 'forwarded' }`. If `source: 'socket'`, all users share one limit: fix before relying on it.
 - **W6** CORS allows only `FRONTEND_URL` origins in production. Add a custom domain or preview URL there (comma separated) or the browser blocks it.
 - **W7** If every user gets 429 at once, Render is not passing the client address (see W4): all users share one limit.
+- **W8** Vercel must install devDependencies (default) because `npm run build` now runs the backend type check.
 - **W5** With `DEMO_MODE=true`, the demo teammate's phone number is visible in the deployed site's code (by design).
 
 ## Open security issues
@@ -19,7 +20,7 @@
 | S3 | Med-High | No abuse limits; unauthenticated patient creation runs paid YarnGPT jobs | **Mitigated** (T3): per-client and global limits. In memory, single instance; many addresses can still use the global cap (blocks sign-up for up to 1 h) |
 | S4 | Medium | Doctor access to patients not authorised on the server | Open: T6, blocked on D3 |
 | S5 | Medium | Emergency URL is a permanent key with no revocation | Open: T7, blocked on D2 |
-| S6 | Low | Alert rate-limit race; client-chosen location | Race fixed for one instance (T3). Location still client-chosen and unvalidated: T12 |
+| S6 | Low | Alert rate-limit race; client-chosen location | **Fixed** for one instance (T3, T12). Location is range-checked but still client-chosen (cannot be verified) |
 | S7 | Low | 500 errors return internal messages | **Fixed** (T4) |
 | S8 | Low | Sessions signed with the service role key; no revocation | Open: T5 |
 | S9 | Low | CORS allows `http://localhost:*` in production | **Fixed** (T4). CORS is not authentication: non-browser clients can still call the API |
@@ -27,7 +28,7 @@
 
 ## Open correctness issues
 
-C1 EndVisit stuck on "Saving" (T9) · C2 verify ignores database errors and fact types (T8) · C3 offline cache likely misses cross-origin audio and API (T16) · C4 build skips backend type check (T22) · C5 duplicated briefing text (T10) · C6 duplicate briefing trigger (T13).
+C1 fixed (T9) · C2 **partially** fixed (T8): validated and retry-safe, but a failure mid-save leaves some facts written until the doctor retries; two server instances could still duplicate a fact (no unique index) · C3 offline cache likely misses cross-origin audio and API (T16) · C4 fixed (T22) · C5 duplicated briefing text (T10) · C6 duplicate briefing trigger (T13).
 
 ## Known limitations
 
