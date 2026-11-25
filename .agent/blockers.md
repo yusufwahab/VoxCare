@@ -8,7 +8,7 @@
 - **W4** After deploy: enter 5 wrong PINs from one phone; Render logs must show `[doctor-login] rate limited { scope: 'client', source: 'forwarded' }`. If `source: 'socket'`, all users share one limit: fix before relying on it.
 - **W6** CORS allows only `FRONTEND_URL` origins in production. Add a custom domain or preview URL there (comma separated) or the browser blocks it.
 - **W7** If every user gets 429 at once, Render is not passing the client address (see W4): all users share one limit.
-- **W8** Vercel must install devDependencies (default) because `npm run build` now runs the backend type check.
+- **W8** `npm run build` runs `npm run typecheck`. On Vercel the backend part is skipped (no `api/` upload) and Vercel must install devDependencies (default). Render's build (`npm install`, production) does not type-check; the check happens locally and should run in CI (T20).
 - **W5** With `DEMO_MODE=true`, the demo teammate's phone number is visible in the deployed site's code (by design).
 
 ## Open security issues
@@ -28,9 +28,12 @@
 
 ## Open correctness issues
 
-C1 fixed (T9) · C2 **partially** fixed (T8): validated and retry-safe, but a failure mid-save leaves some facts written until the doctor retries; two server instances could still duplicate a fact (no unique index) · C3 offline cache likely misses cross-origin audio and API (T16) · C4 fixed (T22) · C5 duplicated briefing text (T10) · C6 duplicate briefing trigger (T13).
+C1 fixed (T9) · C2 **partially** fixed (T8): validated and retry-safe, but a failure mid-save leaves some facts written until the doctor retries; two server instances could still duplicate a fact (no unique index) · C3 offline cache likely misses cross-origin audio and API (T16) · C4 fixed (T22) · C5 fixed (T10) · C6 fixed (T13).
 
 ## Known limitations
+
+- No browser or device tests: EndVisit error/retry (T9), reduced motion (T25) and the consent cards (T26) are verified by type check, lint and server-render tests only. Check on a phone before the demo.
+- Briefing jobs are merged per patient in one process only (like the rate limits).
 
 - An expired join link is only renewed while the patient is on the setup Check screen. A patient who skipped that step has no button to resend later (no UI for it yet).
 - Once a help person has joined, the patient cannot change them (re-invite is refused). Changing help person needs a UI flow and a decision.
