@@ -219,7 +219,6 @@ export async function saveVerifiedFacts(args: { patientId: string; doctorId: str
     d.visits.push({ id: args.visitId, patient_id: args.patientId, doctor_id: args.doctorId, transcript: args.transcript, ended_at: at })
     save(d)
   })
-  void requestBriefing(args.patientId)
 }
 
 export async function saveWalkInVisit(doctorId: string, visitId: string, transcript: TranscriptItem[], summary: string): Promise<void> {
@@ -232,9 +231,7 @@ export async function saveWalkInVisit(doctorId: string, visitId: string, transcr
 }
 
 // ---- Briefing ----
-export async function requestBriefing(patientId: string): Promise<void> {
-  try { await call('/api/briefing', post({ patientId }), () => null) } catch { /* background */ }
-}
+// The server regenerates the voice briefing itself after creating a patient, saving facts or a verified visit.
 
 // ---- Emergency ----
 export async function getEmergency(id: string): Promise<EmergencyData | null> {

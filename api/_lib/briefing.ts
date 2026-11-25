@@ -1,5 +1,5 @@
 import { env, HttpError } from './env.js'
-import { db, dbFailed, loadPatient, sha256 } from './supabase.js'
+import { db, dbFailed, loadPatient, resolveId, sha256 } from './supabase.js'
 import { briefingText, type FactRow } from './briefingText.js'
 import { fetchWithTimeout, TIMEOUTS } from './fetchTimeout.js'
 
@@ -45,6 +45,8 @@ async function pickVoices(): Promise<Record<Lang, string>> {
   return chosen
 }
 
+/** Pause between YarnGPT job status checks (tests shorten it) */
+export const timing = { pollMs: 1500 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 async function synthesise(text: string, lang: Lang, voice: string, cacheKey: string): Promise<Buffer> {
@@ -61,7 +63,7 @@ async function synthesise(text: string, lang: Lang, voice: string, cacheKey: str
   const { job_id } = (await start.json()) as { job_id: string }
 
   for (let i = 0; i < 40; i++) {
-    await sleep(1500)
+    await sleep(timing.pollMs)
     let st: Response
     try {
       st = await fetchWithTimeout('YarnGPT', `${YARN}/status/${job_id}`, { headers: { Authorization: headers.Authorization } }, TIMEOUTS.yarnApi)
@@ -91,8 +93,40 @@ export async function currentBriefing(rawPatientId: string) {
   return { patient, verified, unverified, text, textHash: sha256(text) }
 }
 
-/** Make sure all four briefings exist for the current text. Reuses anything already generated. */
-export async function ensureBriefings(rawPatientId: string): Promise<{ generated: Lang[]; reused: Lang[] }> {
+type BriefingResult = { generated: Lang[]; reused: Lang[] }
+const runs = new Map<string, { again: boolean; promise: Promise<BriefingResult> }>()
+
+/**
+ * Make sure all four briefings exist for the current text. Reuses anything already generated.
+ * One run per patient at a time in this process: a request that arrives during a run does not start a
+ * parallel one (which would pay YarnGPT twice); it waits, and the run repeats once afterwards so facts
+ * saved in the meantime are included. The repeat reuses cached audio unless the text changed.
+ */
+export function ensureBriefings(rawPatientId: string): Promise<BriefingResult> {
+  const key = resolveId(rawPatientId)
+  const running = runs.get(key)
+  if (running) {
+    running.again = true
+    return running.promise
+  }
+  const state = { again: false, promise: Promise.resolve<BriefingResult>({ generated: [], reused: [] }) }
+  state.promise = (async () => {
+    try {
+      let result = await generateBriefings(rawPatientId)
+      while (state.again) {
+        state.again = false
+        result = await generateBriefings(rawPatientId)
+      }
+      return result
+    } finally {
+      runs.delete(key)
+    }
+  })()
+  runs.set(key, state)
+  return state.promise
+}
+
+async function generateBriefings(rawPatientId: string): Promise<BriefingResult> {
   const { patient, text, textHash } = await currentBriefing(rawPatientId)
   const voices = await pickVoices()
   const generated: Lang[] = []
