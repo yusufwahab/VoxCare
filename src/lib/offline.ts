@@ -44,8 +44,10 @@ export async function saveOfflineCard(data: EmergencyData, now = Date.now()): Pr
   } catch { /* storage full or unavailable */ }
 }
 
+export type OfflineCard = EmergencyData & { savedAt: number }
+
 /** The saved card for this patient, or null if there is none, it belongs to someone else or it has expired. */
-export async function loadOfflineCard(patientId: string, now = Date.now()): Promise<EmergencyData | null> {
+export async function loadOfflineCard(patientId: string, now = Date.now()): Promise<OfflineCard | null> {
   if (!hasCaches()) return null
   try {
     const cache = await caches.open(OFFLINE_CACHE)
@@ -55,7 +57,7 @@ export async function loadOfflineCard(patientId: string, now = Date.now()): Prom
     if (stored.data?.id !== patientId) return null
     if (!(now - stored.savedAt < OFFLINE_TTL_MS)) { await clearOfflineCard(); return null }
     const photo = remote(stored.data.photo_url) ? await offlineFileUrl(stored.data.photo_url) : stored.data.photo_url
-    return { ...stored.data, photo_url: photo }
+    return { ...stored.data, photo_url: photo, savedAt: stored.savedAt }
   } catch { return null }
 }
 

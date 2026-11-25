@@ -49,6 +49,7 @@ describe('offline emergency card (T16)', () => {
     const loaded = await loadOfflineCard('p1')
     expect(loaded?.verified[0].value).toBe('Penicillin')
     expect(loaded?.audio.en).toBe(AUDIO_EN)
+    expect(loaded?.savedAt).toEqual(expect.any(Number)) // the page says it is a saved copy
   })
 
   it('never returns the saved card for a different patient', async () => {

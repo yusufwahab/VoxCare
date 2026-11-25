@@ -10,7 +10,7 @@ import { speak, stopSpeaking, warmVoices } from '../lib/speech'
 import { whatsappLink } from '../lib/whatsapp'
 import { FACT_LABEL } from '../lib/types'
 import { useDevice } from '../store/device'
-import { clearOfflineCard, loadOfflineCard, offlineFileUrl, saveOfflineCard } from '../lib/offline'
+import { clearOfflineCard, loadOfflineCard, offlineFileUrl, saveOfflineCard, type OfflineCard } from '../lib/offline'
 
 const ASKABLE = QUESTIONS.filter((q) => ANSWERS[q.id])
 
@@ -28,8 +28,10 @@ function getLocation(): Promise<{ lat: number; lng: number } | undefined> {
 
 export default function Emergency() {
   const { patientId = '' } = useParams()
-  const [data, setData] = useState<EmergencyData | null | undefined>(undefined)
+  const [data, setData] = useState<EmergencyData | OfflineCard | null | undefined>(undefined)
   const [alert, setAlert] = useState<'sending' | 'sent' | 'failed'>('sending')
+  // The server could not be reached and this phone has no saved copy (not the same as "card not found")
+  const [unreachable, setUnreachable] = useState(false)
   const [loc, setLoc] = useState<{ lat: number; lng: number } | undefined>()
   const [playing, setPlaying] = useState(false)
   const [lang, setLang] = useState<Lang | null>(null)
@@ -49,7 +51,11 @@ export default function Emergency() {
         setData(d)
         if (own) void (d ? saveOfflineCard(d) : clearOfflineCard())
       })
-      .catch(async () => setData(own ? await loadOfflineCard(patientId) : null))
+      .catch(async () => {
+        const saved = own ? await loadOfflineCard(patientId) : null
+        if (!saved) setUnreachable(true)
+        setData(saved)
+      })
     if (alerted.current) return
     alerted.current = true
     getLocation().then(async (l) => {
@@ -107,6 +113,13 @@ export default function Emergency() {
   if (data === undefined) {
     return <div className="grid min-h-dvh place-items-center bg-ivory"><span className="glow block h-24 w-24" /></div>
   }
+  if (data === null && unreachable) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-ivory p-6 text-center">
+        <div><h1 className="h3">No connection</h1><p className="mt-2 text-muted">This card could not be loaded. Connect to the internet, then try again.</p></div>
+      </main>
+    )
+  }
   if (data === null) {
     return (
       <main className="grid min-h-dvh place-items-center bg-ivory p-6 text-center">
@@ -135,10 +148,11 @@ export default function Emergency() {
           {data.photo_url ? (
             <img src={data.photo_url} alt={data.name ?? 'The patient'} width={160} height={160} className="h-40 w-40 rounded-full object-cover shadow-soft ring-4 ring-white" />
           ) : (
-            <span className="grid h-40 w-40 place-items-center rounded-full bg-sand text-muted shadow-soft ring-4 ring-white" aria-label="No photo"><User size={72} aria-hidden /></span>
+            <span className="grid h-40 w-40 place-items-center rounded-full bg-sand text-muted shadow-soft ring-4 ring-white" role="img" aria-label="No photo"><User size={72} aria-hidden /></span>
           )}
           {data.name && <h1 className="text-4xl font-semibold tracking-tight">{data.name}</h1>}
           <span className="inline-flex items-center gap-2 rounded-full bg-alert px-5 py-2.5 font-mono text-sm font-medium uppercase tracking-[0.1em] text-white"><Siren size={18} aria-hidden /> Emergency · Deaf · Cannot speak</span>
+          {'savedAt' in data && <p className="max-w-md text-sm text-muted" role="status">Saved on this phone on {new Date(data.savedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}. No connection, so this may not be up to date.</p>}
         </div>
 
         {/* Play briefing */}
