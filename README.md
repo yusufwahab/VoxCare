@@ -10,7 +10,7 @@ npm install
 cp .env.example .env      # fill in the values (see below)
 npm run dev               # front end only; /api falls back to seeded mock data
 npx vercel dev            # front end + /api functions with your real keys
-npm test                  # sentence builder + body region tests
+npm test                  # all tests (see "Tests" below)
 ```
 
 Without a backend the app runs on a seeded mock (demo patient, doctor PIN 1234) stored in localStorage.
@@ -86,9 +86,41 @@ Then put the final Vercel address back into Render as `FRONTEND_URL` if it chang
 
 ### 3. Check it
 
-Open `https://<your-vercel-address>/e/demo`. It should load the demo patient. Then run a hospital visit, sign in with PIN 1234.
+Open `https://<your-vercel-address>/e/demo`. It should load the demo patient. Then run a hospital visit and sign in with the doctor PIN you set for production (see "Doctor sign-in": the public PIN 1234 is refused in production).
 
 In a deployed build the app never falls back to mock data. If the API address is wrong or the server is down, requests fail visibly instead of faking a patient.
+
+## Doctor sign-in
+
+Doctors sign in with a 4-digit PIN (`/api/doctor-login`). The PIN is stored as `sha256('voxcare:' || pin)`.
+
+**Production refuses the public demo PIN `1234`** (when `NODE_ENV` or `VERCEL_ENV` is `production`). Locally it still works. To demo on the live site, give the seeded doctor a private PIN in the Supabase SQL editor (never commit it):
+
+```sql
+update public.doctors
+set pin = encode(extensions.digest('voxcare:' || '<new 4-digit PIN>', 'sha256'), 'hex')
+where id = 'd0c70000-0000-4000-8000-000000000001';
+```
+
+**Brute-force protection** (in [api/doctor-login.ts](api/doctor-login.ts)):
+
+- 5 attempts per client per 15 minutes, then `429` with `Retry-After`. A successful sign-in clears that client's count.
+- 50 unsuccessful attempts from all clients together per 15 minutes, then everyone gets `429` until the window passes. This slows guessing spread over many addresses, but someone with many addresses can use it to block sign-in for every doctor for up to 15 minutes.
+- The client is identified by the TCP peer address. `X-Forwarded-For` is only read when the peer is a private address (Render's proxy), and only its last entry, which the proxy appended. IPv6 clients are grouped by /64.
+- Database errors return `503` and do not count as attempts. Logs never contain PINs, hashes, tokens or client addresses.
+
+**Limitations.** The counts are kept in memory: a restart or redeploy clears them, and each server instance counts separately, so **run a single Render instance**. If a CDN or second proxy is put in front of Render, every user arrives from that proxy's address and shares one limit. A 4-digit PIN has only 10,000 possibilities, and the unsalted hash can be reversed instantly by anyone who can read the `doctors` table. Per-doctor lockout, longer PINs and a slow salted hash need a doctor identifier at sign-in; that change is proposed, not yet made.
+
+## Tests
+
+`npm test` runs Vitest over `src/`, `api/`, `server/` and `test/`. [test/setup.ts](test/setup.ts) runs first in every test file:
+
+- Every key is replaced by a dummy from [test/env.ts](test/env.ts), and the run stops if a real one is found. Your `.env` is never used by tests.
+- Network access is blocked ([test/networkGuard.ts](test/networkGuard.ts)): `fetch` and any TCP or TLS connection to a non-local host fail with `ERR_TEST_NETWORK_BLOCKED`. Localhost stays allowed.
+- `createClient` from `@supabase/supabase-js` returns an in-memory fake ([test/mocks/supabase.ts](test/mocks/supabase.ts)), so tests cannot touch a real Supabase project.
+- After each test: fake database emptied, rate limits cleared, timers, mocks, stubbed globals and environment restored.
+
+Helpers: `invoke()` in [test/http.ts](test/http.ts) calls an `/api` handler directly; `mockFetch()` in [test/mocks/fetch.ts](test/mocks/fetch.ts) fakes Brevo, YarnGPT or the API by URL.
 
 ## Notes
 

@@ -14,6 +14,7 @@ export function route(handler: Handler) {
       const status = e instanceof HttpError ? e.status : 500
       const message = e instanceof Error ? e.message : 'Server error'
       if (status >= 500) console.error('[api]', req.url, message)
+      if (e instanceof HttpError && e.headers) for (const [name, value] of Object.entries(e.headers)) res.setHeader(name, value)
       res.status(status).json({ error: message })
     }
   }
