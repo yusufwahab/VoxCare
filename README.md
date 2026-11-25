@@ -49,12 +49,46 @@ To test the email without a real emergency, run `npx vercel dev`, open `/dev/tes
 
 RLS is on with no policies, so the anon key can read and write nothing. Every read and write goes through `/api` using the service role key. The emergency endpoint returns only the briefing subset, never visit transcripts.
 
-## Deploy (Vercel)
+## Deploy: backend on Render, frontend on Vercel
 
-1. Import the repo into Vercel. The framework preset is Vite.
-2. Add every variable from the table in Project Settings, Environment Variables.
-3. Deploy. [vercel.json](vercel.json) sets the function timeout and the SPA rewrites.
-4. Open `https://<domain>/e/demo` to check the emergency page, then run a hospital visit.
+The frontend (Vercel) and the backend (Render) are separate. The backend is `server/index.ts`, which serves the handlers in `api/`.
+
+### 1. Backend on Render (do this first)
+
+Create a **Web Service** from the repo.
+
+| Setting | Value |
+| --- | --- |
+| Language | Node |
+| Build Command | `npm install` |
+| Start Command | `npm start` |
+| Health Check Path | `/health` |
+| Instance type | Paid, always-on (a free instance sleeps and the first request takes 30 to 60 seconds) |
+
+Environment variables (Render, Environment tab):
+
+`NODE_VERSION=22`, `NODE_ENV=production`, `YARNGPT_API_KEY`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `DEMO_HELP_EMAIL`, `DEMO_HELP_PHONE`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and:
+
+- `FRONTEND_URL`: your Vercel address, e.g. `https://voxcare.vercel.app`. It is the only origin allowed to call the API (CORS) and it is the base of the links inside emails. Use a comma to allow more than one (for example a custom domain). No trailing slash.
+
+Check it: `https://<your-service>.onrender.com/health` should return `{"ok":true,"service":"voxcare-api"}`.
+
+### 2. Frontend on Vercel
+
+Import the repo. The framework preset is Vite. Build command `npm run build`, output `dist`. Vercel ignores `api/` and `server/` (see `.vercelignore`).
+
+Environment variables (Vercel, Settings, Environment Variables). These are read at build time, so redeploy after changing them:
+
+- `VITE_API_URL`: the Render address, e.g. `https://voxcare-api.onrender.com`. No trailing slash.
+- `DEMO_MODE` and `DEMO_WHATSAPP_NUMBER`.
+
+Then put the final Vercel address back into Render as `FRONTEND_URL` if it changed.
+
+### 3. Check it
+
+Open `https://<your-vercel-address>/e/demo`. It should load the demo patient. Then run a hospital visit, sign in with PIN 1234.
+
+In a deployed build the app never falls back to mock data. If the API address is wrong or the server is down, requests fail visibly instead of faking a patient.
 
 ## Notes
 

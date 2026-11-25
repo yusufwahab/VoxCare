@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { PillButton } from '../../components/ui'
+import { API_BASE } from '../../lib/api'
 
 /** Dev only: sends a sample alert email to DEMO_HELP_EMAIL through the server. */
 export default function TestEmail() {
@@ -8,7 +9,7 @@ export default function TestEmail() {
   const send = async () => {
     setBusy(true)
     try {
-      const res = await fetch('/api/test-email', { method: 'POST' })
+      const res = await fetch(API_BASE + '/api/test-email', { method: 'POST' })
       const type = res.headers.get('content-type') ?? ''
       const json = type.includes('json') ? await res.json() : null
       setResult(json ? (res.ok ? `Sent to ${json.to}` : `Failed: ${json.error}`) : 'No API found. Run "npx vercel dev" so /api is available.')

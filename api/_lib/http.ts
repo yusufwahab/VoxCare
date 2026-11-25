@@ -23,6 +23,9 @@ export const body = <T>(req: VercelRequest): T => (typeof req.body === 'string' 
 
 /** https://<domain> of this deployment, for links inside emails */
 export const baseUrl = (req: VercelRequest): string => {
+  // The frontend (Vercel) is a different host from this API (Render), so links in emails use FRONTEND_URL
+  const front = process.env.FRONTEND_URL?.split(',')[0]?.trim().replace(/\/$/, '')
+  if (front) return front
   const host = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? 'localhost:3000')
   const proto = String(req.headers['x-forwarded-proto'] ?? (host.startsWith('localhost') ? 'http' : 'https')).split(',')[0]
   return `${proto}://${host}`

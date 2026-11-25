@@ -60,22 +60,28 @@ function save(d: MockDb) {
   try { localStorage.setItem(KEY, JSON.stringify(d)) } catch { /* ignore */ }
 }
 
+/** Where the backend lives. Empty in dev (same server). On Vercel set VITE_API_URL to the Render URL. */
+export const API_BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/$/, '')
+/** The seeded mock is for local development only. A real deployment never fakes data. */
+const MOCK_ALLOWED = import.meta.env.DEV
+
 let backendUp: boolean | null = null
 let authToken: string | null = null
 
 async function call<T>(path: string, init: RequestInit | undefined, mock: () => T | Promise<T>): Promise<{ data: T; mock: boolean }> {
-  if (backendUp !== false) {
+  if (backendUp !== false || !MOCK_ALLOWED) {
     try {
-      const res = await fetch(path, { ...init, headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}), ...(init?.headers ?? {}) } })
+      const res = await fetch(API_BASE + path, { ...init, headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}), ...(init?.headers ?? {}) } })
       const type = res.headers.get('content-type') ?? ''
       if (type.includes('application/json')) {
         backendUp = true
         if (!res.ok) throw new Error((await res.json()).error ?? `HTTP ${res.status}`)
         return { data: (await res.json()) as T, mock: false }
       }
+      if (!MOCK_ALLOWED) throw new Error('The server is not reachable. Check the API address.')
       backendUp = false // got HTML (dev server fallback) so there is no backend
     } catch (e) {
-      if (backendUp === true) throw e
+      if (backendUp === true || !MOCK_ALLOWED) throw e
       backendUp = false
     }
   }
