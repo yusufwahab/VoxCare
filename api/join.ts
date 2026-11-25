@@ -6,6 +6,9 @@ import { HttpError } from './_lib/env.js'
 import { db, isUuid, resolveId, sha256 } from './_lib/supabase.js'
 import { sendWelcomeEmail } from './_lib/email.js'
 import { isExpired, newJoinToken, TOKEN_SHAPE } from './_lib/invite.js'
+import { clientKey } from './_lib/clientIp.js'
+import { limiters } from './_lib/limits.js'
+import { enforce } from './_lib/rateLimit.js'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
@@ -68,6 +71,8 @@ export default route(async (req) => {
   }
 
   if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed')
+  const { key, source } = clientKey(req)
+  enforce(limiters.join, key, 'join', source)
   const b = readBody(req)
 
   // The patient's device replaces its invitation link. The old link stops working at once.

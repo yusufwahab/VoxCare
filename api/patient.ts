@@ -5,6 +5,9 @@ import { HttpError, safeMessage } from './_lib/env.js'
 import { db, dbFailed, loadPatient, newToken, sha256 } from './_lib/supabase.js'
 import { ensureBriefings } from './_lib/briefing.js'
 import { newJoinToken } from './_lib/invite.js'
+import { clientKey } from './_lib/clientIp.js'
+import { limiters } from './_lib/limits.js'
+import { enforce } from './_lib/rateLimit.js'
 
 interface NewPatient { name?: string | null; photo?: string | null; help_phone: string; help_name?: string | null }
 
@@ -34,6 +37,10 @@ export default route(async (req) => {
   // POST -> create the patient. Returns the id and a secret token the device keeps.
   const b = body<NewPatient>(req)
   if (!/^\d{10,15}$/.test(b.help_phone ?? '')) throw new HttpError(400, 'Invalid help phone')
+  // Before any await, so parallel requests cannot slip past the count
+  const { key, source } = clientKey(req)
+  enforce(limiters.patientCreate, key, 'patient create', source)
+  try { enforce(limiters.patientCreateGlobal, 'all', 'patient create (global)', source) } catch (e) { limiters.patientCreate.release(key); throw e }
   const token = newToken()
   const joinToken = newJoinToken() // goes in the link the patient sends to the help person; expires (api/_lib/invite.ts)
   const photo_url = b.photo ? await uploadPhoto(b.photo) : null

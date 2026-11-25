@@ -19,6 +19,8 @@ export interface Limiter {
   reset(): void
 }
 
+import { HttpError } from './env.js'
+
 const all = new Set<Limiter>()
 
 export function createLimiter(opts: { limit: number; windowMs: number; maxKeys?: number }): Limiter {
@@ -65,4 +67,16 @@ export function createLimiter(opts: { limit: number; windowMs: number; maxKeys?:
 /** Clears every limiter in this process. Used between tests. */
 export function resetAllLimiters(): void {
   for (const l of all) l.reset()
+}
+
+/**
+ * Take one attempt from `limiter` for `key`, or throw 429 with Retry-After (seconds).
+ * Synchronous, so it must run before the handler's first await: parallel requests then cannot all pass.
+ * `label` and `source` are logged; the key (an IP address) is not.
+ */
+export function enforce(limiter: Limiter, key: string, label: string, source?: string): void {
+  const r = limiter.take(key)
+  if (r.ok) return
+  console.warn('[rate-limit]', label, { source })
+  throw new HttpError(429, 'Too many requests. Wait a few minutes and try again.', { 'Retry-After': String(Math.ceil(r.retryAfterMs / 1000)) })
 }
