@@ -9,6 +9,8 @@ import { ANSWERS, QUESTIONS, type Asset } from '../data/assets'
 import { speak, stopSpeaking, warmVoices } from '../lib/speech'
 import { whatsappLink } from '../lib/whatsapp'
 import { FACT_LABEL } from '../lib/types'
+import { useDevice } from '../store/device'
+import { clearOfflineCard, loadOfflineCard, offlineFileUrl, saveOfflineCard } from '../lib/offline'
 
 const ASKABLE = QUESTIONS.filter((q) => ANSWERS[q.id])
 
@@ -36,10 +38,18 @@ export default function Emergency() {
   const audio = useRef<HTMLAudioElement | null>(null)
   const seq = useRef<Lang[]>([])
   const alerted = useRef(false)
+  const playId = useRef(0)
 
   useEffect(() => {
     warmVoices()
-    getEmergency(patientId).then(setData).catch(() => setData(null))
+    // Only this phone's own card is kept for offline use (T16)
+    const own = patientId === useDevice.getState().patientId
+    getEmergency(patientId)
+      .then((d) => {
+        setData(d)
+        if (own) void (d ? saveOfflineCard(d) : clearOfflineCard())
+      })
+      .catch(async () => setData(own ? await loadOfflineCard(patientId) : null))
     if (alerted.current) return
     alerted.current = true
     getLocation().then(async (l) => {
@@ -63,16 +73,21 @@ export default function Emergency() {
     setLang(l)
     setPlaying(true)
     audio.current?.pause()
-    const a = new Audio(url)
-    audio.current = a
-    a.onended = next
-    a.onerror = next
-    a.play().catch(finish)
+    const id = ++playId.current
+    // The saved copy plays without signal; otherwise the online file
+    offlineFileUrl(url).then((src) => {
+      if (id !== playId.current) return // stopped or replaced meanwhile
+      const a = new Audio(src)
+      audio.current = a
+      a.onended = next
+      a.onerror = next
+      a.play().catch(finish)
+    })
   }
 
   const play = () => {
     if (!data) return
-    if (playing) { audio.current?.pause(); stopSpeaking(); setPlaying(false); setLang(null); return }
+    if (playing) { playId.current++; audio.current?.pause(); stopSpeaking(); setPlaying(false); setLang(null); return }
     if (available.length === 0) {
       // No cached audio: speak the English briefing on this device
       setPlaying(true); setLang('en')

@@ -75,7 +75,7 @@ async function call<T>(path: string, init: RequestInit | undefined, mock: () => 
       const type = res.headers.get('content-type') ?? ''
       if (type.includes('application/json')) {
         backendUp = true
-        if (!res.ok) throw new Error((await res.json()).error ?? `HTTP ${res.status}`)
+        if (!res.ok) throw Object.assign(new Error((await res.json()).error ?? `HTTP ${res.status}`), { status: res.status })
         return { data: (await res.json()) as T, mock: false }
       }
       if (!MOCK_ALLOWED) throw new Error('The server is not reachable. Check the API address.')
@@ -234,6 +234,7 @@ export async function saveWalkInVisit(doctorId: string, visitId: string, transcr
 // The server regenerates the voice briefing itself after creating a patient, saving facts or a verified visit.
 
 // ---- Emergency ----
+/** null: the server says this card does not exist. Throws when the server cannot be reached (use the offline copy). */
 export async function getEmergency(id: string): Promise<EmergencyData | null> {
   const { data } = await call<EmergencyData | null>(`/api/emergency?id=${encodeURIComponent(id)}`, undefined, () => {
     const p = db().patients[id]
@@ -244,6 +245,9 @@ export async function getEmergency(id: string): Promise<EmergencyData | null> {
       id: p.id, name: p.name, photo_url: p.photo, help_phone: p.help_phone, help_name: p.help_name, verified, unverified,
       audio: {} as Partial<Record<Lang, string>>, text: briefingText(p.name, verified, unverified),
     }
+  }).catch((e: unknown) => {
+    if ((e as { status?: number }).status === 404) return { data: null }
+    throw e
   })
   return data
 }

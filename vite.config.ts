@@ -57,11 +57,11 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         navigateFallbackDenylist: [/^\/api\//],
+        // Emergency data and briefing audio are NOT cached here: src/lib/offline.ts keeps only this phone's own card,
+        // with an expiry, and clears it on reset (T16). Never add API or Supabase storage routes to this list.
         runtimeCaching: [
           { urlPattern: /\/assets\/.*\.(webp|jpg|png)$/, handler: 'CacheFirst', options: { cacheName: 'vc-images', expiration: { maxEntries: 400 } } },
           { urlPattern: /\/assets\/.*\.mp4$/, handler: 'CacheFirst', options: { cacheName: 'vc-clips', rangeRequests: true, cacheableResponse: { statuses: [200] } } },
-          { urlPattern: /\/briefings\/.*\.mp3$/, handler: 'CacheFirst', options: { cacheName: 'vc-briefings', rangeRequests: true, cacheableResponse: { statuses: [0, 200] } } },
-          { urlPattern: /\/api\/emergency/, handler: 'NetworkFirst', options: { cacheName: 'vc-emergency', networkTimeoutSeconds: 4 } },
         ],
       },
     }),
