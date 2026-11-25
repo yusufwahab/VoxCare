@@ -252,7 +252,8 @@ export async function getEmergency(id: string): Promise<EmergencyData | null> {
 }
 
 export async function sendAlert(patientId: string, loc?: { lat: number; lng: number }): Promise<{ sent: boolean; reason?: string; mock?: boolean }> {
-  const { data, mock } = await call<{ sent: boolean; reason?: string }>('/api/alert', post({ patientId, ...loc }), () => {
+  // The server gives Brevo 10 s; never leave the emergency banner on "sending"
+  const { data, mock } = await call<{ sent: boolean; reason?: string }>('/api/alert', { ...post({ patientId, ...loc }), signal: AbortSignal.timeout(SAVE_TIMEOUT_MS) }, () => {
     const d = db()
     const last = d.alerts[patientId] ?? 0
     if (Date.now() - last < 10 * 60_000) return { sent: true, reason: 'rate_limited' }

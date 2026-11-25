@@ -1,6 +1,7 @@
 import { env, HttpError } from './env.js'
 import { db, dbFailed, loadPatient, sha256 } from './supabase.js'
 import { briefingText, type FactRow } from './briefingText.js'
+import { fetchWithTimeout, TIMEOUTS } from './fetchTimeout.js'
 
 export type Lang = 'en' | 'yo' | 'ig' | 'ha'
 export const LANG_IDS: Lang[] = ['en', 'yo', 'ig', 'ha']
@@ -24,7 +25,7 @@ interface VoiceInfo { id?: string; name?: string; voice?: string; languages?: st
 
 async function pickVoices(): Promise<Record<Lang, string>> {
   if (voiceCache) return voiceCache
-  const res = await fetch(`${YARN}/voices`, { headers: { Authorization: `Bearer ${env('YARNGPT_API_KEY')}` } })
+  const res = await fetchWithTimeout('YarnGPT', `${YARN}/voices`, { headers: { Authorization: `Bearer ${env('YARNGPT_API_KEY')}` } }, TIMEOUTS.yarnApi)
   if (!res.ok) throw new HttpError(502, `YarnGPT voices error ${res.status}`)
   const json = (await res.json()) as VoiceInfo[] | { voices?: VoiceInfo[]; data?: VoiceInfo[] }
   const list: VoiceInfo[] = Array.isArray(json) ? json : (json.voices ?? json.data ?? [])
@@ -55,19 +56,24 @@ async function synthesise(text: string, lang: Lang, voice: string, cacheKey: str
   const payload: Record<string, unknown> = { text, voice, output_format: 'mp3' }
   if (lang !== 'en') payload.target_language = lang
   console.log('[briefing] YarnGPT call', lang, voice, cacheKey.slice(0, 10))
-  const start = await fetch(`${YARN}/tts`, { method: 'POST', headers, body: JSON.stringify(payload) })
+  const start = await fetchWithTimeout('YarnGPT', `${YARN}/tts`, { method: 'POST', headers, body: JSON.stringify(payload) }, TIMEOUTS.yarnApi)
   if (start.status !== 202 && !start.ok) throw new HttpError(502, `YarnGPT tts error ${start.status}`)
   const { job_id } = (await start.json()) as { job_id: string }
 
   for (let i = 0; i < 40; i++) {
     await sleep(1500)
-    const st = await fetch(`${YARN}/status/${job_id}`, { headers: { Authorization: headers.Authorization } })
+    let st: Response
+    try {
+      st = await fetchWithTimeout('YarnGPT', `${YARN}/status/${job_id}`, { headers: { Authorization: headers.Authorization } }, TIMEOUTS.yarnApi)
+    } catch {
+      continue // a slow or failed status check is retried; the loop bounds the total
+    }
     if (!st.ok) continue
     const s = (await st.json()) as { status: string; audio_url?: string }
     if (s.status === 'failed') throw new HttpError(502, 'YarnGPT job failed')
     if (s.status === 'completed' && s.audio_url) {
       // The URL expires in about an hour, so download immediately
-      const audio = await fetch(s.audio_url)
+      const audio = await fetchWithTimeout('YarnGPT audio', s.audio_url, {}, TIMEOUTS.yarnAudio)
       if (!audio.ok) throw new HttpError(502, 'Could not download audio')
       return Buffer.from(await audio.arrayBuffer())
     }

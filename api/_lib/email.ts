@@ -1,8 +1,9 @@
 import { env, HttpError } from './env.js'
+import { fetchWithTimeout, TIMEOUTS } from './fetchTimeout.js'
 
 /** The one place Brevo is called. Server only: the API key never reaches the browser. */
 async function brevoSend(msg: { to: { email: string; name?: string }; subject: string; htmlContent: string; textContent: string }): Promise<void> {
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+  const res = await fetchWithTimeout('Brevo', 'https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: { 'api-key': env('BREVO_API_KEY'), 'content-type': 'application/json', accept: 'application/json' },
     body: JSON.stringify({
@@ -12,7 +13,7 @@ async function brevoSend(msg: { to: { email: string; name?: string }; subject: s
       htmlContent: msg.htmlContent,
       textContent: msg.textContent,
     }),
-  })
+  }, TIMEOUTS.brevo)
   if (!res.ok) throw new HttpError(502, `Brevo error ${res.status}`)
 }
 
