@@ -24,6 +24,18 @@ Set a private doctor PIN (W1), keep `NODE_ENV=production` (W2), single Render in
 
 Approved and deferred items are in [decisions.md](decisions.md). Waiting on the team: D1 (S1 full fix), D2 (delete card), D3 (patient authorisation), D4 (SMS vs email).
 
+## User-visible changes for the collaborator to approve
+
+All small and kept to the existing design; listed so the PR review can accept or reject each:
+
+1. **EndVisit (T9):** on a failed save a red "Not saved. <reason>" box appears and the button reads "Try again". Before, the screen stayed on "Saving" forever.
+2. **Server error text (T4):** unexpected errors show "Something went wrong. Please try again." instead of internal messages.
+3. **Rate limits (T3):** heavy use gets "Too many requests. Wait a few minutes and try again."
+4. **Join link (T2):** an expired link shows the existing "This link is not valid / Ask your friend to send it again" screen; joining twice says "Someone has already joined with this link".
+5. **Consent pictures (T26):** look the same but are no longer tappable or focusable (they did nothing).
+6. **Reduced motion (T25):** with the phone's reduce-motion setting on, motion animations are minimised.
+7. **Check screen (T2):** an expired link is replaced in the background; nothing visible changes.
+
 ## Exact next action
 
 1. `git push origin dev` (14 local commits). Never force.

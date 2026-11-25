@@ -9,6 +9,11 @@
 - **W6** CORS allows only `FRONTEND_URL` origins in production. Add a custom domain or preview URL there (comma separated) or the browser blocks it.
 - **W7** If every user gets 429 at once, Render is not passing the client address (see W4): all users share one limit.
 - **W8** `npm run build` runs `npm run typecheck`. On Vercel the backend part is skipped (no `api/` upload) and Vercel must install devDependencies (default). Render's build (`npm install`, production) does not type-check; the check happens locally and should run in CI (T20).
+- **W9 Pushing `dev` (not verified: dashboards not visible from here).** The repo has no CI workflows and no `render.yaml`, so deploys come only from the Vercel and Render Git integrations. Before the first push, the owner (yusufwahab) should check:
+  - **Render:** Settings, Build & Deploy: "Branch" must be `main` (or auto-deploy off). If it is `dev`, the push deploys these commits to the **production API**.
+  - **Vercel:** a push to `dev` creates a Preview deployment by default. Check which `VITE_API_URL` the Preview environment uses. If it is the production Render URL, the preview frontend talks to production; the browser blocks it only because CORS allows `FRONTEND_URL` alone (old and new code). Best: a separate Render + Supabase project for previews, or disable previews for `dev` (Settings, Git, Ignored Build Step).
+  - Supabase has no Git integration here, so pushes never touch the database.
+- **W10 Local development writes to production.** `vite.config.ts` loads `.env` into the dev server, and `.env` holds the production `SUPABASE_URL` and service role key (names checked, values not printed). Running `npm run dev` and creating a patient or saving a visit writes to production and can send real Brevo emails and paid YarnGPT jobs. Use a separate Supabase project in `.env` for development. Tests are safe: they refuse to run unless every key is a dummy (`test/setup.ts`).
 - **W5** With `DEMO_MODE=true`, the demo teammate's phone number is visible in the deployed site's code (by design).
 
 ## Open security issues
