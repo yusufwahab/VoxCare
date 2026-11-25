@@ -32,8 +32,8 @@ Approved and deferred items are in [decisions.md](decisions.md). Waiting on the 
 ### Next session: offline, remaining requirements, final checks
 
 **T16 offline (timebox 40 min, needs care with medical data).** Goal (spec): the emergency page and briefing audio work without signal on the patient's own phone.
-- Today the PWA precaches the app shell only. `GET /api/emergency` (Render, cross-origin) and the audio (Supabase storage, cross-origin) are not cached, so offline the page has no data.
-- Smallest safe approach: in `vite.config.ts` (workbox `runtimeCaching`), cache only the **patient's own** emergency data and audio, NetworkFirst for `/api/emergency`, CacheFirst for `/storage/v1/object/public/briefings/`, max age 7 days, small entry limit. Never cache doctor endpoints (`/api/facts`, `/api/verify`) or transcripts.
+- Today `vite.config.ts:60-65` already has runtime caching: `/api/emergency` (NetworkFirst, 4 s) and `/briefings/*.mp3` (CacheFirst). But in production both are **cross-origin** (Render API, Supabase storage), and Workbox applies a RegExp route to a cross-origin URL only if the pattern matches from the start of the full URL. These patterns do not, so offline the page most likely has no data (C3). Neither cache has an expiry.
+- Smallest fix: match on the full URL with a function, e.g. `urlPattern: ({ url }) => url.origin === API_ORIGIN && url.pathname === '/api/emergency'` (API origin from `VITE_API_URL` at build time) and `url.pathname.startsWith('/storage/v1/object/public/briefings/')`; add `expiration` (7 days, small `maxEntries`) and `cacheableResponse: { statuses: [200] }` for the API. Never cache doctor endpoints (`/api/facts`, `/api/verify`) or transcripts.
 - Sensitive data: the cache is readable by anyone holding the unlocked phone. Clear it when the card is deleted (T7, D2) and on `reset()` in `src/store/device.ts`. Document this.
 - Verify with Chrome DevTools offline mode on a built preview (`npm run build && npx vite preview`); it cannot be unit-tested here.
 
