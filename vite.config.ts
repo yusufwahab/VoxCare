@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 import { loadEnv, type Plugin } from 'vite'
+import { TEST_ENV } from './test/env.ts'
 
 /** Dev only: serve the /api functions from this Vite server, using the keys in .env (no Vercel login needed). */
 function devApi(): Plugin {
@@ -65,5 +66,16 @@ export default defineConfig({
       },
     }),
   ],
-  test: { pool: 'vmThreads', environment: 'node', include: ['src/**/*.test.ts', 'api/**/*.test.ts'] },
+  test: {
+    pool: 'vmThreads',
+    environment: 'node',
+    include: ['src/**/*.test.{ts,tsx}', 'api/**/*.test.ts', 'server/**/*.test.ts', 'test/**/*.test.ts'],
+    // Blocks the network, fakes Supabase and resets state between tests (see test/setup.ts)
+    setupFiles: ['./test/setup.ts'],
+    // Dummy values that override anything in .env, so tests never see real keys
+    env: TEST_ENV,
+    restoreMocks: true,
+    unstubGlobals: true,
+    unstubEnvs: true,
+  },
 })
