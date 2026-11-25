@@ -74,8 +74,8 @@ describe('concurrent requests', () => {
 
   it('parallel alerts for one patient send exactly one email', async () => {
     const rs = await Promise.all([raise(), raise(PATIENT, IP_B), raise()])
-    expect(rs.every((r) => r.status === 200 && r.body.sent === true)).toBe(true)
-    expect(rs.filter((r) => r.body.reason === 'rate_limited')).toHaveLength(2)
+    // The parallel requests wait for the one in flight and report its real outcome
+    expect(rs.map((r) => r.body)).toEqual([{ sent: true }, { sent: true }, { sent: true }])
     expect(brevo).toHaveBeenCalledTimes(1)
     expect(testDb.rows('alerts')).toHaveLength(1)
   })
@@ -124,6 +124,26 @@ describe('legitimate emergency use', () => {
     expect((await raise()).status).toBe(502)
     brevo = mockFetch([['https://api.brevo.com/', () => json({}, 201)]])
     expect((await raise()).body).toEqual({ sent: true })
+  })
+
+  it('a parallel request never reports sent while the email in flight fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetch([['https://api.brevo.com/', () => json({}, 500)]])
+    const rs = await Promise.all([raise(), raise(PATIENT, IP_B)])
+    expect(rs.map((r) => r.status)).toEqual([502, 502])
+    expect(rs.some((r) => r.body.sent === true)).toBe(false)
+    expect(testDb.rows('alerts')).toHaveLength(0)
+  })
+
+  it('a bad location is dropped and the alert still goes out', async () => {
+    const r = await post(alert, { patientId: PATIENT, lat: 200, lng: 'x' })
+    expect(r.body).toEqual({ sent: true })
+    expect(testDb.rows('alerts')[0]).toMatchObject({ lat: null, lng: null })
+  })
+
+  it('a valid location is kept', async () => {
+    await post(alert, { patientId: PATIENT, lat: 6.5244, lng: 3.3792 })
+    expect(testDb.rows('alerts')[0]).toMatchObject({ lat: 6.5244, lng: 3.3792 })
   })
 
   it('rejects a malformed patient id before counting', async () => {
