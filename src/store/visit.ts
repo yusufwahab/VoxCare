@@ -32,6 +32,10 @@ interface VisitState {
   typed: string
   submitted: string | null
   submittedPins: Pin[]
+  /** Popup that writes the sentence out as text */
+  sentenceOpen: boolean
+  /** Popup that writes the patient's latest answer out as text */
+  answerOpen: Answer | null
   shown: Shown
   answers: Answer[]
   pictureRequested: boolean
@@ -50,7 +54,7 @@ interface VisitState {
 const blank = {
   patientId: null, patientName: null, patientPhoto: null, screen: 'menu' as PatientScreen, view: 'front' as const, pins: [] as Pin[],
   level: undefined, duration: undefined, feel: [] as string[], events: [] as string[], feelings: [] as string[], notes: [] as { id: string; text: string; label: string }[],
-  typed: '', submitted: null, submittedPins: [] as Pin[], shown: null as Shown, answers: [] as Answer[], pictureRequested: false, transcript: [] as TranscriptItem[],
+  typed: '', submitted: null, submittedPins: [] as Pin[], sentenceOpen: false, answerOpen: null as Answer | null, shown: null as Shown, answers: [] as Answer[], pictureRequested: false, transcript: [] as TranscriptItem[],
 }
 
 export const sentenceFrom = (s: Pick<VisitState, 'pins' | 'level' | 'duration' | 'feel' | 'events' | 'feelings' | 'notes' | 'typed'>) =>
@@ -76,6 +80,7 @@ export const useVisit = create<VisitState>((set, get) => ({
     set((s) => ({
       submitted: text,
       submittedPins: s.pins,
+      sentenceOpen: true,
       screen: 'menu',
       transcript: [...s.transcript, { at: new Date().toISOString(), who: 'patient', kind: 'statement', text }],
     }))
@@ -85,6 +90,7 @@ export const useVisit = create<VisitState>((set, get) => ({
   addAnswer: (question, answer) =>
     set((s) => ({
       answers: [...s.answers, { at: new Date().toISOString(), question, answer }],
+      answerOpen: { at: new Date().toISOString(), question, answer },
       transcript: [...s.transcript, { at: new Date().toISOString(), who: 'patient', kind: 'answer', text: `${question} ${answer}` }],
     })),
   reset: () => set({ ...blank }),

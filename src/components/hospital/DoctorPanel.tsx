@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Hand, MessageSquareText, Send, Volume2, Flag } from 'lucide-react'
+import { Hand, MessageSquareText, Send, Volume2, Flag, Maximize2 } from 'lucide-react'
 import { MiniBody } from '../BodyMap'
 import { Badge, Eyebrow } from '../ui'
 import { byId, INSTRUCTIONS, QUESTIONS, type Asset } from '../../data/assets'
@@ -61,9 +61,14 @@ export function DoctorPanel({ onEnd }: { onEnd: () => void }) {
         <div className="mb-3 flex items-center justify-between">
           <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">The patient says</span>
           {v.submitted && (
-            <button onClick={() => speak(v.submitted!)} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ember px-4 font-semibold text-ink">
-              <Volume2 size={18} aria-hidden /> Speak
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => v.set({ sentenceOpen: true })} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 font-semibold">
+                <Maximize2 size={18} aria-hidden /> Show large
+              </button>
+              <button onClick={() => speak(v.submitted!)} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ember px-4 font-semibold text-ink">
+                <Volume2 size={18} aria-hidden /> Speak
+              </button>
+            </div>
           )}
         </div>
         {v.submitted ? (

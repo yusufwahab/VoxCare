@@ -9,6 +9,7 @@ import { Scanner, nfcSupported, readNfc } from '../components/Scanner'
 import { PatientSide, ShownOverlay } from '../components/hospital/PatientSide'
 import { DoctorPanel } from '../components/hospital/DoctorPanel'
 import { EndVisit } from '../components/hospital/EndVisit'
+import { SentencePopup, AnswerPopup } from '../components/hospital/SentencePopup'
 import { doctorLogin, getPatientPublic, DEMO_ID, isMockBackend } from '../lib/api'
 import { warmVoices } from '../lib/speech'
 import { UI } from '../data/assets'
@@ -141,6 +142,8 @@ export default function Hospital() {
           <DoctorPanel onEnd={() => setEnding(true)} />
         </section>
       </div>
+      <AnimatePresence><SentencePopup /></AnimatePresence>
+      <AnimatePresence><AnswerPopup /></AnimatePresence>
       {ending && <EndVisit onClose={() => setEnding(false)} onFinished={reset} />}
     </div>
   )
