@@ -4,6 +4,7 @@ import { route, body, q } from './_lib/http.js'
 import { HttpError } from './_lib/env.js'
 import { db, loadPatient, newToken, sha256 } from './_lib/supabase.js'
 import { ensureBriefings } from './_lib/briefing.js'
+import { newJoinToken } from './_lib/invite.js'
 
 interface NewPatient { name?: string | null; photo?: string | null; help_phone: string; help_name?: string | null }
 
@@ -34,7 +35,7 @@ export default route(async (req) => {
   const b = body<NewPatient>(req)
   if (!/^\d{10,15}$/.test(b.help_phone ?? '')) throw new HttpError(400, 'Invalid help phone')
   const token = newToken()
-  const joinToken = newToken() // goes in the link the patient sends to the help person
+  const joinToken = newJoinToken() // goes in the link the patient sends to the help person; expires (api/_lib/invite.ts)
   const photo_url = b.photo ? await uploadPhoto(b.photo) : null
   const { data, error } = await db()
     .from('patients')

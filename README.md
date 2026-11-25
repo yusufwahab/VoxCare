@@ -40,6 +40,8 @@ Every WhatsApp link is built by `whatsappLink()` in `src/lib/whatsapp.ts`. The d
 
 The patient never types an email. At setup the patient sends a WhatsApp message with a link, `/join/<token>`. The help person opens it, enters their own email and taps Join. We save the email, send a welcome email, and the patient's screen (which checks every 3 seconds) shows "They joined". When an emergency page opens, `/api/alert` emails that address (at most one alert per patient every 10 minutes).
 
+The join link works once and expires after 72 hours (`api/_lib/invite.ts`). After a help person has joined, the link cannot replace them. If the link expires before anyone joins, the patient's Check screen quietly gets a new one (`POST /api/join` with `action: "reinvite"` and the device token), and the old link stops working.
+
 To test the email without a real emergency, run `npx vercel dev`, open `/dev/test-email` and press the button. It sends a sample alert to `DEMO_HELP_EMAIL`. The route exists in development only.
 
 ## Database

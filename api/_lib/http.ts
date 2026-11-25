@@ -13,7 +13,8 @@ export function route(handler: Handler) {
     } catch (e) {
       const status = e instanceof HttpError ? e.status : 500
       const message = e instanceof Error ? e.message : 'Server error'
-      if (status >= 500) console.error('[api]', req.url, message)
+      // Log the path only: query strings can carry join links and device tokens
+      if (status >= 500) console.error('[api]', (req.url ?? '').split('?')[0], message)
       if (e instanceof HttpError && e.headers) for (const [name, value] of Object.entries(e.headers)) res.setHeader(name, value)
       res.status(status).json({ error: message })
     }

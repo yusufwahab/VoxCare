@@ -118,11 +118,26 @@ export async function createPatient(p: NewPatient): Promise<{ id: string; token:
 }
 
 // ---- Help person joins by themselves ----
-export async function getHelpStatus(patientId: string, token: string): Promise<boolean> {
-  const { data } = await call<{ confirmed: boolean }>(`/api/join?patientId=${encodeURIComponent(patientId)}&token=${encodeURIComponent(token)}`, undefined, () => ({
+export interface HelpStatus { confirmed: boolean; linkExpired: boolean }
+
+export async function getHelpStatus(patientId: string, token: string): Promise<HelpStatus> {
+  const { data } = await call<{ confirmed: boolean; link_expired?: boolean }>(`/api/join?patientId=${encodeURIComponent(patientId)}&token=${encodeURIComponent(token)}`, undefined, () => ({
     confirmed: !!db().patients[patientId]?.help_confirmed_at,
   }))
-  return data.confirmed
+  return { confirmed: data.confirmed, linkExpired: !!data.link_expired }
+}
+
+/** Replace the invitation link (the old one stops working). Needs this device's secret token. */
+export async function renewJoinLink(patientId: string, token: string): Promise<string> {
+  const { data } = await call<{ join_token: string }>('/api/join', post({ action: 'reinvite', patientId, token }), () => {
+    const d = db()
+    const p = d.patients[patientId]
+    if (!p || p.token !== token) throw new Error('Not allowed')
+    p.join_token = uid()
+    save(d)
+    return { join_token: p.join_token }
+  })
+  return data.join_token
 }
 
 export interface JoinInfo { name: string | null; photo_url: string | null; joined: boolean }

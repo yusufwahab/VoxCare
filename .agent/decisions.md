@@ -13,6 +13,9 @@
 | 2026-11-25 | Public demo PIN `1234` refused when `NODE_ENV` or `VERCEL_ENV` is `production` |
 | 2026-11-25 | Spec deviations kept as built: email alerts instead of SMS; join link instead of the "Check" tick/cross; React 19 |
 | 2026-11-25 | No automatic dependency upgrades (`npm audit fix --force` would downgrade majors) |
+| 2026-11-25 | T2: no schema change. The join token carries its issue time (`j1_<ms base36>_<48 hex>`); legacy tokens fall back to `created_at`, which is correct because they were only issued at creation. TTL 72 h |
+| 2026-11-25 | T2: re-invite is refused once a help person has joined (no silent replacement of an alert recipient) |
+| 2026-11-25 | 5xx logs record the request path only, never the query string |
 
 ## Deferred (need team approval; keep in roadmap)
 

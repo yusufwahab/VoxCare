@@ -7,23 +7,34 @@ import { PillButton } from '../../components/ui'
 import { normaliseNg } from '../../components/Dialpad'
 import { UI } from '../../data/assets'
 import { useDevice } from '../../store/device'
-import { getHelpStatus } from '../../lib/api'
+import { getHelpStatus, renewJoinLink } from '../../lib/api'
 import { whatsappLink } from '../../lib/whatsapp'
 
 export default function Check() {
   const nav = useNavigate()
-  const { helpPhone, helpJoinToken, patientId, token, helpConfirmed, setHelpConfirmed } = useDevice()
+  const { helpPhone, helpJoinToken, patientId, token, helpConfirmed, setHelpConfirmed, setJoin } = useDevice()
   const [opened, setOpened] = useState(false)
   const number = normaliseNg(helpPhone) ?? ''
 
-  // Ask every 3 seconds whether the help person has joined
+  // Ask every 3 seconds whether the help person has joined. An expired link is replaced quietly,
+  // so the WhatsApp button always sends one that works.
   useEffect(() => {
     if (helpConfirmed || !patientId || !token) return
-    const poll = async () => { try { if (await getHelpStatus(patientId, token)) setHelpConfirmed(true) } catch { /* keep waiting */ } }
+    let renewing = false
+    const poll = async () => {
+      try {
+        const s = await getHelpStatus(patientId, token)
+        if (s.confirmed) setHelpConfirmed(true)
+        else if (s.linkExpired && !renewing) {
+          renewing = true
+          try { setJoin(await renewJoinLink(patientId, token)) } finally { renewing = false }
+        }
+      } catch { /* keep waiting */ }
+    }
     void poll()
     const t = setInterval(poll, 3000)
     return () => clearInterval(t)
-  }, [helpConfirmed, patientId, token, setHelpConfirmed])
+  }, [helpConfirmed, patientId, token, setHelpConfirmed, setJoin])
 
   const open = () => {
     const link = `${window.location.origin}/join/${helpJoinToken}`
