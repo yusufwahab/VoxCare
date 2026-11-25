@@ -4,7 +4,7 @@ import { Check, Volume2, X } from 'lucide-react'
 import { MiniBody } from '../BodyMap'
 import { PillButton } from '../ui'
 import { byId } from '../../data/assets'
-import { useVisit } from '../../store/visit'
+import { useVisit } from '../../visit/store'
 import { speak } from '../../lib/speech'
 
 /** Writes the patient's sentence out as large text, so it is read as well as heard. */

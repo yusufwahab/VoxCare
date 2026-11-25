@@ -1,4 +1,3 @@
-import { waitUntil } from '@vercel/functions'
 import { route, body, q } from './_lib/http.js'
 import { HttpError } from './_lib/env.js'
 import { db, loadPatient, sha256 } from './_lib/supabase.js'
@@ -34,7 +33,12 @@ export default route(async (req) => {
   const p = await byJoinToken(b.joinToken)
   const { error } = await db().from('patients').update({ help_email: email, help_confirmed_at: new Date().toISOString() }).eq('id', p.id)
   if (error) throw new HttpError(500, error.message)
-  // The join is saved even if the welcome email fails
-  waitUntil(sendWelcomeEmail({ to: email, patientName: p.name, photoUrl: p.photo_url }).catch((e) => console.error('[join] welcome email failed', e.message)))
-  return { ok: true }
+  // The join is saved even if the welcome email fails, but we wait for the result so we can say so honestly
+  try {
+    await sendWelcomeEmail({ to: email, patientName: p.name, photoUrl: p.photo_url })
+    return { ok: true, emailed: true }
+  } catch (e) {
+    console.error('[join] welcome email FAILED:', e instanceof Error ? e.message : e)
+    return { ok: true, emailed: false }
+  }
 })

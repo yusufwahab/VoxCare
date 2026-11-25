@@ -1,22 +1,23 @@
 import { waitUntil } from '@vercel/functions'
 import { route, body } from './_lib/http.js'
+import { HttpError } from './_lib/env.js'
 import { db, loadPatient, requireDoctor } from './_lib/supabase.js'
 import { ensureBriefings } from './_lib/briefing.js'
 
 interface VerifyBody {
+  visitId: string
   patientId: string | null
-  doctorId: string
   facts: { id?: string; type: string; value: string }[]
   remove?: string[]
-  transcript: unknown[]
   summary: string
 }
 
-/** Doctor only. Saves facts as doctor_verified (service role), stores the visit, regenerates the briefing. */
+/** Doctor only. Saves facts as doctor_verified (service role), closes the visit, regenerates the briefing. */
 export default route(async (req) => {
   const doctorId = requireDoctor(req.headers.authorization)
   const b = body<VerifyBody>(req)
   const now = new Date().toISOString()
+  if (!b.visitId) throw new HttpError(400, 'Missing visit')
 
   let patientDbId: string | null = null
   if (b.patientId) {
@@ -33,7 +34,8 @@ export default route(async (req) => {
     }
   }
 
-  await db().from('visits').insert({ patient_id: patientDbId, doctor_id: doctorId, started_at: now, ended_at: now, transcript: b.transcript ?? [], summary: (b.summary ?? '').slice(0, 4000) })
+  const { error } = await db().from('visits').update({ ended_at: now, status: 'ended', summary: (b.summary ?? '').slice(0, 4000) }).eq('id', b.visitId).eq('doctor_id', doctorId)
+  if (error) throw new HttpError(500, error.message)
 
   if (patientDbId) waitUntil(ensureBriefings(patientDbId).catch((e) => console.error('[briefing] background failed', e.message)))
   return { ok: true }

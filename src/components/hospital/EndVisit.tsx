@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Plus, Trash2, X } from 'lucide-react'
 import { Badge, Eyebrow, PillButton, cx } from '../ui'
-import { getFactsForDoctor, saveVerifiedFacts, saveWalkInVisit } from '../../lib/api'
+import { finishVisit, getFactsForDoctor } from '../../lib/api'
 import { FACT_LABEL, type Fact, type FactType } from '../../lib/types'
 import { useStaff } from '../../store/device'
-import { useVisit } from '../../store/visit'
+import { useVisit } from '../../visit/store'
 
 interface Row { id: string; type: FactType; value: string; status: Fact['status']; confirmed: boolean; isNew?: boolean; removed?: boolean }
 
@@ -27,7 +27,7 @@ export function EndVisit({ onClose, onFinished }: { onClose: () => void; onFinis
     )
   }, [v.patientId, doctor.id])
 
-  const summary = useMemo(() => v.transcript.map((t) => `${t.who === 'doctor' ? 'Doctor' : 'Patient'}: ${t.text}`).join('\n'), [v.transcript])
+  const summary = useMemo(() => v.summary.map((t) => `${t.who === 'doctor' ? 'Doctor' : 'Patient'}: ${t.text}`).join('\n'), [v.summary])
 
   const update = (id: string, p: Partial<Row>) => setRows((r) => r.map((x) => (x.id === id ? { ...x, ...p } : x)))
   const addRow = (type: FactType, value: string) => {
@@ -40,18 +40,18 @@ export function EndVisit({ onClose, onFinished }: { onClose: () => void; onFinis
   const save = async () => {
     setSaving(true)
     const keep = rows.filter((r) => !r.removed && r.confirmed)
-    if (v.patientId) {
-      await saveVerifiedFacts({
-        patientId: v.patientId, doctorId: doctor.id,
+    try {
+      await v.end() // tells the other device and saves the last events
+      await finishVisit({
+        visitId: v.visitId ?? '', patientId: v.patientId, doctorId: doctor.id,
         facts: keep.map((r) => ({ id: r.isNew ? undefined : r.id, type: r.type, value: r.value })),
         remove: rows.filter((r) => r.removed && !r.isNew).map((r) => r.id),
-        transcript: v.transcript, summary,
+        summary,
       })
-    } else {
-      await saveWalkInVisit(doctor.id, v.transcript, summary)
+      setStep('saved')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
-    setStep('saved')
   }
 
   return (
@@ -65,9 +65,9 @@ export function EndVisit({ onClose, onFinished }: { onClose: () => void; onFinis
         {step === 'summary' && (
           <>
             <h2 className="h2 mb-6">Everything said and answered</h2>
-            {v.transcript.length === 0 ? <p className="text-muted">Nothing was recorded in this visit.</p> : (
+            {v.summary.length === 0 ? <p className="text-muted">Nothing was recorded in this visit.</p> : (
               <ol className="space-y-3">
-                {v.transcript.map((t, i) => (
+                {v.summary.map((t, i) => (
                   <li key={i} className={cx('rounded-[20px] p-4', t.who === 'patient' ? 'bg-white shadow-soft' : 'bg-sand')}>
                     <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted">{t.who === 'patient' ? 'Patient' : 'Doctor'}</span>
                     <p className="mt-0.5 text-lg font-semibold leading-snug">{t.text}</p>

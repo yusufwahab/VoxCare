@@ -2,9 +2,9 @@ import { motion } from 'motion/react'
 import { Delete } from 'lucide-react'
 
 /** Big digits-only keypad, like a phone dialler */
-export function Dialpad({ value, onChange, maxLength = 14, hideDisplay }: { value: string; onChange: (v: string) => void; maxLength?: number; hideDisplay?: boolean }) {
+export function Dialpad({ value, onChange, maxLength = 14, hideDisplay, noPlus }: { value: string; onChange: (v: string) => void; maxLength?: number; hideDisplay?: boolean; noPlus?: boolean }) {
   const press = (d: string) => value.length < maxLength && onChange(value + d)
-  const keys = hideDisplay ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0'] : ['1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '0']
+  const keys = hideDisplay || noPlus ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0'] : ['1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '0']
   return (
     <div className="mx-auto w-full max-w-[22rem]">
       {!hideDisplay && <div className="mb-4 flex min-h-[4.5rem] items-center justify-center rounded-[20px] border border-line bg-white px-4 text-center text-[2.25rem] font-semibold tracking-wide tabular-nums shadow-soft" aria-live="polite" aria-label="Number">

@@ -19,6 +19,8 @@ const ROUTES: Record<string, () => Promise<{ default: Handler }>> = {
   patient: () => import('../api/patient.js'),
   'test-email': () => import('../api/test-email.js'),
   verify: () => import('../api/verify.js'),
+  visit: () => import('../api/visit.js'),
+  'visit-events': () => import('../api/visit-events.js'),
 }
 
 const allowed = (process.env.FRONTEND_URL ?? '').split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean)

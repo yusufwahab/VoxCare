@@ -53,6 +53,21 @@ create table if not exists public.visits (
   summary     text
 );
 
+-- Visit modes: one device or two devices, joined with a 6-digit code. transcript is the list of
+-- typed events; any device can rebuild the visit by replaying it.
+alter table public.visits add column if not exists code   text;
+alter table public.visits add column if not exists mode   text not null default 'one' check (mode in ('one','two'));
+alter table public.visits add column if not exists status text not null default 'active' check (status in ('active','ended'));
+create index if not exists visits_active_code_idx on public.visits (code) where status = 'active';
+
+-- Append events atomically, so two devices writing at the same moment never overwrite each other.
+create or replace function public.append_visit_events(p_visit uuid, p_events jsonb)
+returns void language sql as $$
+  update public.visits set transcript = transcript || p_events where id = p_visit and status = 'active';
+$$;
+revoke all on function public.append_visit_events(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.append_visit_events(uuid, jsonb) to service_role;
+
 create table if not exists public.briefings (
   patient_id  uuid not null references public.patients(id) on delete cascade,
   language    text not null check (language in ('en','yo','ig','ha')),
