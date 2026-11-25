@@ -16,6 +16,10 @@
 - **W10 Local development writes to production.** `vite.config.ts` loads `.env` into the dev server, and `.env` holds the production `SUPABASE_URL` and service role key (names checked, values not printed). Running `npm run dev` and creating a patient or saving a visit writes to production and can send real Brevo emails and paid YarnGPT jobs. Use a separate Supabase project in `.env` for development. Tests are safe: they refuse to run unless every key is a dummy (`test/setup.ts`).
 - **W5** With `DEMO_MODE=true`, the demo teammate's phone number is visible in the deployed site's code (by design).
 
+## PR blocker (found 2026-11-25 13:10)
+
+**B1 `main` has moved on.** `origin/main` is at `b93a477` ("added doctors and patients", after `307f824` "third commit"): 33 files, about +1,900/-380 lines, including new endpoints (`api/visit.ts`, `api/visit-events.ts`, `api/_lib/limit.ts`), a new visit store (`src/visit/`) and `supabase/schema.sql` changes. Merging `dev` into `main` conflicts in 7 files: `README.md`, `api/join.ts`, `api/verify.ts`, `server/index.ts`, `src/App.tsx`, `src/components/hospital/EndVisit.tsx`, `src/lib/api.ts`. The new endpoints have none of the T2–T13 hardening yet. Before a PR: merge `origin/main` into `dev` (no rebase, no force), resolve with the collaborator's intent, re-run every check, and review the new endpoints and schema changes. Needs the user's go-ahead.
+
 ## Open security issues
 
 | ID | Severity | Issue | Status |

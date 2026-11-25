@@ -38,6 +38,8 @@ All small and kept to the existing design; listed so the PR review can accept or
 
 ## Exact next action
 
+0. **B1 first:** `main` moved (`b93a477`); `dev` conflicts in 7 files. See [blockers.md](blockers.md). Merge `origin/main` into `dev` with approval before preparing the PR.
+
 1. `git push origin dev` (14 local commits). Never force.
 2. **Team decisions:** P1 ([proposals/P1-atomic-visit-save.md](proposals/P1-atomic-visit-save.md)), P2/D3 (T6, below), D2 (T7), D4 (T14).
 
