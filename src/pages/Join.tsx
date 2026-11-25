@@ -11,6 +11,7 @@ export default function Join() {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
+  const [emailed, setEmailed] = useState<boolean | undefined>()
   const [error, setError] = useState('')
 
   useEffect(() => { getJoinInfo(token).then(setInfo) }, [token])
@@ -20,7 +21,7 @@ export default function Join() {
 
   const submit = async () => {
     setBusy(true); setError('')
-    try { await joinAsHelper(token, email.trim()); setDone(true) }
+    try { const r = await joinAsHelper(token, email.trim()); setEmailed(r.emailed); setDone(true) }
     catch (e) { setError(e instanceof Error ? e.message : 'Could not join. Try again.') }
     finally { setBusy(false) }
   }
@@ -42,7 +43,7 @@ export default function Join() {
           <>
             <span className="mx-auto mt-8 grid h-20 w-20 place-items-center rounded-full bg-verified text-white"><Check size={44} strokeWidth={3.2} aria-hidden /></span>
             <h1 className="h3 mt-5">You are their help person</h1>
-            <p className="mt-2 text-muted">If {who} is ever in an emergency, you will get an email. We sent you a welcome email too.</p>
+            <p className="mt-2 text-muted">If {who} is ever in an emergency, you will get an email.{emailed === true && ' We sent you a welcome email too. If you cannot see it, check your spam folder.'}{emailed === false && ' We could not send the welcome email just now, but you are saved as their help person.'}</p>
           </>
         ) : (
           <>

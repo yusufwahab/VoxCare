@@ -1,6 +1,5 @@
 import { timingSafeEqual } from 'node:crypto'
 import type { VercelRequest } from '@vercel/node'
-import { waitUntil } from '@vercel/functions'
 import { route, body, q } from './_lib/http.js'
 import { HttpError } from './_lib/env.js'
 import { db, isUuid, resolveId, sha256 } from './_lib/supabase.js'
@@ -113,7 +112,13 @@ export default route(async (req) => {
   if (error) dbFailed('join', error.code)
   if (!Array.isArray(data) || data.length !== 1) throw new HttpError(409, TAKEN)
 
-  // The join is saved even if the welcome email fails. Brevo errors can echo the address, so log no details.
-  waitUntil(sendWelcomeEmail({ to: email, patientName: p.name, photoUrl: p.photo_url }).catch((e: unknown) => console.error('[join] welcome email failed', { status: e instanceof HttpError ? e.status : undefined })))
-  return { ok: true }
+  // The join is saved even if the welcome email fails, but we wait for the result so the page can say so honestly.
+  // Brevo errors can echo the address, so log no details.
+  try {
+    await sendWelcomeEmail({ to: email, patientName: p.name, photoUrl: p.photo_url })
+    return { ok: true, emailed: true }
+  } catch (e: unknown) {
+    console.error('[join] welcome email failed', { status: e instanceof HttpError ? e.status : undefined })
+    return { ok: true, emailed: false }
+  }
 })

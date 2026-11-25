@@ -3,17 +3,9 @@ import { AnimatePresence, motion } from 'motion/react'
 import { RotateCw, X } from 'lucide-react'
 import { BODY } from '../data/assets'
 import { detectRegion, REGIONS, type Region, type View } from '../lib/regions'
-import type { PainKind } from '../lib/sentence'
+import type { Pin } from '../visit/events'
 
-export interface Pin {
-  id: string
-  view: View
-  /** percentages of the image */
-  x: number
-  y: number
-  regionName: string
-  kind?: PainKind
-}
+export type { Pin }
 
 interface Props {
   view: View

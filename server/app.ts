@@ -21,6 +21,8 @@ const ROUTES: Record<string, () => Promise<{ default: Handler }>> = {
   patient: () => import('../api/patient.js'),
   'test-email': () => import('../api/test-email.js'),
   verify: () => import('../api/verify.js'),
+  visit: () => import('../api/visit.js'),
+  'visit-events': () => import('../api/visit-events.js'),
 }
 /** Never served on the live deployment */
 const DEV_ONLY = new Set(['test-email'])

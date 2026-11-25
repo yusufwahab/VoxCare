@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { json, mockFetch } from '../../test/mocks/fetch'
-import { doctorLogin, saveErrorMessage, saveVerifiedFacts } from './api'
+import { doctorLogin, saveErrorMessage, finishVisit } from './api'
 
 const doctor = { id: 'd1', name: 'Dr. Test', mdcn_number: 'MDCN/R/1', verified: true }
 
@@ -27,19 +27,19 @@ describe('doctorLogin (browser client)', () => {
   })
 })
 
-describe('saveVerifiedFacts (browser client)', () => {
-  const args = { patientId: 'p1', doctorId: 'd1', visitId: 'v1', facts: [], transcript: [], summary: '' }
+describe('finishVisit (browser client)', () => {
+  const args = { patientId: 'p1', doctorId: 'd1', visitId: 'v1', facts: [], summary: '' }
 
   it('makes one request and no separate briefing request (the server regenerates it)', async () => {
     const f = mockFetch([['/api/verify', () => json({ ok: true })]])
-    await saveVerifiedFacts(args)
+    await finishVisit(args)
     expect(f.mock.calls.map((c) => String(c[0]))).toEqual(['/api/verify'])
     expect(JSON.parse(f.mock.calls[0][1]!.body as string).visitId).toBe('v1')
   })
 
   it('throws when the server did not save, so the screen can offer a retry', async () => {
     mockFetch([['/api/verify', () => json({ error: 'Something went wrong. Please try again.' }, 500)]])
-    await expect(saveVerifiedFacts(args)).rejects.toThrow('Something went wrong.')
+    await expect(finishVisit(args)).rejects.toThrow('Something went wrong.')
   })
 
   it('turns timeouts and network failures into readable messages', () => {

@@ -29,11 +29,11 @@ For phone testing over HTTPS (camera, location, NFC need it) use `ngrok http 300
 | `DEMO_HELP_PHONE` | Phone behind the Call button for the seeded demo patient |
 | `DEMO_MODE` | `true` or `false` (default `false`). When `true`, every WhatsApp link opens `DEMO_WHATSAPP_NUMBER` and a small "Demo mode" pill shows |
 | `DEMO_WHATSAPP_NUMBER` | Digits only with country code, e.g. `2348012345678` |
-| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Project URL and anon key |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Project URL and anon key. The anon key is public by design; the frontend uses it only for Realtime in two-device visits |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only. Also signs doctor session tokens |
 
 Brevo is only ever called from the server, in `sendAlertEmail` and `sendWelcomeEmail` in `api/_lib/email.ts`.
-`DEMO_MODE` and `DEMO_WHATSAPP_NUMBER` are readable by the browser (they only decide where a WhatsApp link points). All other keys stay on the server.
+`DEMO_MODE`, `DEMO_WHATSAPP_NUMBER`, `SUPABASE_URL` and `SUPABASE_ANON_KEY` are readable by the browser. All other keys stay on the server.
 Every WhatsApp link is built by `whatsappLink()` in `src/lib/whatsapp.ts`. The dialled number is still saved and used for the Call button.
 
 ## How the help person joins
@@ -83,6 +83,7 @@ Environment variables (Vercel, Settings, Environment Variables). These are read 
 
 - `VITE_API_URL`: the Render address, e.g. `https://voxcare-api.onrender.com`. No trailing slash.
 - `DEMO_MODE` and `DEMO_WHATSAPP_NUMBER`.
+- `SUPABASE_URL` and `SUPABASE_ANON_KEY`: needed for two-device visits (Supabase Realtime runs in the browser). Without them, "Two devices" is disabled.
 
 Then put the final Vercel address back into Render as `FRONTEND_URL` if it changed.
 
@@ -141,6 +142,20 @@ Server errors return a generic message (`Something went wrong. Please try again.
 Helpers: `invoke()` in [test/http.ts](test/http.ts) calls an `/api` handler directly; `mockFetch()` in [test/mocks/fetch.ts](test/mocks/fetch.ts) fakes Brevo, YarnGPT or the API by URL.
 
 **Pull request checks:** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs lint, both type checks, the tests and the build on every pull request into `main`. It uses dummy values only, needs no repository secrets and deploys nothing.
+
+## Visit modes
+
+Every visit is created on the server when the doctor starts it, and gets a 6-digit code.
+
+- **One device:** doctor and patient share a tablet or phone. A wide landscape tablet shows the split view. A phone or a portrait tablet shows one person at a time, with a "Hand to patient" button.
+- **Two devices:** the patient uses their own phone, nearby or remote. They join by scanning the QR code, typing the code at `/v`, or opening the link (`/v/<visitId>?role=patient&code=<code>`, sent over WhatsApp or copied). If the doctor scanned the patient's card and VoxCare is open on the patient's phone, it asks Allow or No.
+- **Switch anytime:** "Use two devices" and "Use one device" move the same visit across without losing anything.
+
+How it works: everything that happens is a typed event (`src/visit/events.ts`) handled by one reducer (`src/visit/reducer.ts`). One device applies events directly. Two devices also send them over Supabase Realtime Broadcast on the channel `visit:<visitId>`, and every event is appended to `visits.transcript`. A device that joins or reconnects replays the transcript to catch up.
+
+Realtime needs "Allow public access" left on in Supabase, Project Settings, Realtime (the default). The channel name is a random id and the API checks the code, but anyone who knows the visit id can listen on the channel, so treat visit links like private links.
+
+Visits need the `code`, `mode` and `status` columns on `visits` and the `append_visit_events` function from [supabase/schema.sql](supabase/schema.sql). Apply them to a database before deploying this code to it.
 
 ## Notes
 

@@ -55,11 +55,21 @@ describe('successful registration', () => {
     seedPatient()
     const r = await join({ joinToken, email: '  Helper@Example.com ' })
     expect(r.status).toBe(200)
-    expect(r.body).toEqual({ ok: true })
+    expect(r.body).toEqual({ ok: true, emailed: true })
     expect(patient().help_email).toBe(EMAIL)
     expect(patient().help_confirmed_at).toBeTruthy()
-    await vi.waitFor(() => expect(brevo).toHaveBeenCalledTimes(1))
+    expect(brevo).toHaveBeenCalledTimes(1)
     expect((await status()).body).toEqual({ confirmed: true, link_expired: false })
+  })
+
+  it('still saves the help person when the welcome email fails, and says so without logging the address', async () => {
+    seedPatient()
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetch([['https://api.brevo.com/', () => json({ message: `bad ${EMAIL}` }, 500)]])
+    const r = await join({ joinToken, email: EMAIL })
+    expect(r.body).toEqual({ ok: true, emailed: false })
+    expect(patient().help_confirmed_at).toBeTruthy()
+    expect(JSON.stringify(errors.mock.calls)).not.toContain(EMAIL)
   })
 
   it('shows who invited them, without private fields', async () => {

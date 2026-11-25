@@ -176,3 +176,27 @@ describe('consistent records', () => {
     expect((await save({ facts: [{ id: F_BLOOD, type: 'blood_group', value: 'O+' }] })).status).toBe(200)
   })
 })
+
+describe('closing a visit started with /api/visit (merged from main)', () => {
+  const EVENTS = [{ id: 'e1', type: 'patient.said', at: 1 }]
+  beforeEach(() => {
+    testDb.seed('visits', [{ id: VISIT, patient_id: PATIENT, doctor_id: DOC, code: '123456', mode: 'one', status: 'active', transcript: EVENTS, started_at: '2026-11-25T11:00:00Z' }])
+  })
+
+  it('closes the existing visit, keeps its event log and stores no second row', async () => {
+    const r = await save({ summary: 'Patient: knee pain' })
+    expect(r.status).toBe(200)
+    const rows = testDb.rows('visits')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ id: VISIT, status: 'ended', summary: 'Patient: knee pain', transcript: EVENTS })
+    expect(rows[0].ended_at).toBeTruthy()
+    // A retry ends in the same state
+    expect((await save({ summary: 'Patient: knee pain' })).status).toBe(200)
+    expect(testDb.rows('visits')).toHaveLength(1)
+  })
+
+  it('another doctor cannot close it', async () => {
+    expect((await save({}, OTHER_DOC)).status).toBe(409)
+    expect(testDb.rows('visits')[0].status).toBe('active')
+  })
+})

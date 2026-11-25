@@ -3,7 +3,8 @@
  * keys, or offline) it falls back to a seeded mock stored in localStorage so the whole flow still works.
  */
 import { briefingText } from './briefingText'
-import type { Doctor, EmergencyData, Fact, FactStatus, FactType, Lang, PatientPublic, TranscriptItem } from './types'
+import type { Doctor, EmergencyData, Fact, FactStatus, FactType, Lang, PatientPublic } from './types'
+import type { VisitEvent, VisitMode } from '../visit/events'
 
 export const DEMO_ID = 'demo'
 
@@ -22,7 +23,6 @@ interface MockPatient {
 }
 interface MockDb {
   patients: Record<string, MockPatient>
-  visits: { id?: string; patient_id: string | null; doctor_id: string; transcript: TranscriptItem[]; ended_at: string }[]
   alerts: Record<string, number>
 }
 
@@ -42,7 +42,6 @@ function seed(): MockDb {
         ],
       },
     },
-    visits: [],
     alerts: {},
   }
 }
@@ -160,15 +159,17 @@ export async function getJoinInfo(joinToken: string): Promise<JoinInfo | null> {
   } catch { return null }
 }
 
-export async function joinAsHelper(joinToken: string, email: string): Promise<void> {
-  await call('/api/join', post({ joinToken, email }), () => {
+export async function joinAsHelper(joinToken: string, email: string): Promise<{ emailed?: boolean }> {
+  const { data } = await call<{ ok: boolean; emailed?: boolean }>('/api/join', post({ joinToken, email }), () => {
     const d = db()
     const p = Object.values(d.patients).find((x) => x.join_token === joinToken)
     if (!p) throw new Error('This link is not valid')
     p.help_email = email
     p.help_confirmed_at = new Date().toISOString()
     save(d)
+    return { ok: true }
   })
+  return { emailed: data.emailed }
 }
 
 export async function getPatientPublic(id: string): Promise<PatientPublic | null> {
@@ -200,11 +201,12 @@ export async function addSelfFacts(patientId: string, token: string, facts: { ty
 
 export interface VerifiedFactInput { id?: string; type: FactType; value: string }
 
-/** Throws if the server did not save everything. Safe to retry with the same visitId (no duplicates). */
-export async function saveVerifiedFacts(args: { patientId: string; doctorId: string; visitId: string; facts: VerifiedFactInput[]; remove?: string[]; transcript: TranscriptItem[]; summary: string }): Promise<void> {
+/** Close the visit. With a patient, also saves the facts the doctor confirmed. The server refreshes the briefing.
+ *  Throws if the server did not save everything. Safe to retry with the same visitId (no duplicates). */
+export async function finishVisit(args: { visitId: string; patientId: string | null; doctorId: string; facts: VerifiedFactInput[]; remove?: string[]; summary: string }): Promise<void> {
   await call('/api/verify', postWithTimeout(args), () => {
     const d = db()
-    const p = d.patients[args.patientId]
+    const p = args.patientId ? d.patients[args.patientId] : undefined
     const at = new Date().toISOString()
     if (p) {
       for (const f of args.facts) {
@@ -214,20 +216,47 @@ export async function saveVerifiedFacts(args: { patientId: string; doctorId: str
         else p.facts.push({ id: uid(), type: f.type, value: f.value, status, verified_by: args.doctorId, verified_at: at })
       }
       p.facts = p.facts.filter((x) => !args.remove?.includes(x.id))
+      save(d)
     }
-    d.visits = d.visits.filter((x) => x.id !== args.visitId)
-    d.visits.push({ id: args.visitId, patient_id: args.patientId, doctor_id: args.doctorId, transcript: args.transcript, ended_at: at })
-    save(d)
   })
 }
 
-export async function saveWalkInVisit(doctorId: string, visitId: string, transcript: TranscriptItem[], summary: string): Promise<void> {
-  await call('/api/verify', postWithTimeout({ patientId: null, doctorId, visitId, facts: [], transcript, summary }), () => {
-    const d = db()
-    d.visits = d.visits.filter((x) => x.id !== visitId)
-    d.visits.push({ id: visitId, patient_id: null, doctor_id: doctorId, transcript, ended_at: new Date().toISOString() })
-    save(d)
+// ---- Visits (one device or two) ----
+export interface VisitInfo {
+  id: string
+  mode: VisitMode
+  status?: 'active' | 'ended'
+  doctor: { name: string; mdcn_number: string; verified: boolean } | null
+  patient: { name: string | null; photo_url: string | null } | null
+  transcript?: VisitEvent[]
+}
+
+export async function createVisit(patientId: string | null, mode: VisitMode): Promise<{ id: string; code: string }> {
+  const { data } = await call<{ id: string; code: string }>('/api/visit', post({ patientId, mode }), () => ({ id: uid(), code: String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0') }))
+  return data
+}
+
+/** A device that knows the visit id and code gets the whole visit, to replay it */
+export async function getVisit(id: string, code: string): Promise<VisitInfo> {
+  const { data } = await call<VisitInfo>(`/api/visit?id=${encodeURIComponent(id)}&code=${code}`, undefined, () => { throw new Error('Two-device visits need the server.') })
+  return data
+}
+
+/** The patient typed the 6-digit code: who is calling? (no conversation is returned) */
+export async function lookupVisit(code: string): Promise<VisitInfo> {
+  const { data } = await call<VisitInfo>(`/api/visit?code=${code}`, undefined, () => { throw new Error('Two-device visits need the server.') })
+  return data
+}
+
+/** Saves events to the visit. Fails quietly in the mock; the caller retries on real errors. */
+export async function appendVisitEvents(visitId: string, code: string, events: VisitEvent[], keepalive = false): Promise<void> {
+  const res = await fetch(API_BASE + '/api/visit-events', {
+    method: 'POST', keepalive,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visitId, code, events }),
   })
+  if (res.status === 404 && MOCK_ALLOWED) return // no backend in dev: nothing to save to
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
 }
 
 // ---- Briefing ----

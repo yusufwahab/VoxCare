@@ -90,13 +90,13 @@ export function parseVerify(b: unknown): VerifyInput {
 }
 
 /**
- * Doctor only. Saves facts as doctor_verified, stores the visit, regenerates the briefing.
+ * Doctor only. Saves facts as doctor_verified, closes (or stores) the visit, regenerates the briefing.
  *
  * Not one transaction (that needs a Postgres function: see .agent/decisions.md). Instead every step can be
  * repeated safely, so a retry after a partial failure ends in the same records, never duplicates:
  *  - a fact is matched by id, else by type + value (case-insensitive), and updated instead of inserted again;
  *  - removing an already removed fact does nothing;
- *  - the visit uses the id the client sent, so it is stored once.
+ *  - the visit uses the id the client sent: an existing visit is closed again (same result), a new one is stored once.
  * Any failed write returns 500 and the client keeps the form to retry. Success is only returned after all writes.
  */
 export default route(async (req) => {
@@ -154,7 +154,8 @@ async function saveVisit(doctorId: string, input: VerifyInput, now: string) {
     }
   }
 
-  // The visit is stored once per visit id, even if the request is retried
+  // A visit started with /api/visit already exists (its transcript is the event log): close it.
+  // Otherwise store it once per visit id. Both are safe to repeat when the request is retried.
   const visitId = input.visitId
   let stored = false
   if (visitId) {
@@ -162,6 +163,10 @@ async function saveVisit(doctorId: string, input: VerifyInput, now: string) {
     if (error) dbFailed('visit lookup', error)
     if (data && (data as { doctor_id: string }).doctor_id !== doctorId) throw new HttpError(409, 'Invalid visit id')
     stored = !!data
+    if (stored) {
+      const { error: e } = await db().from('visits').update({ ended_at: now, status: 'ended', summary: input.summary }).eq('id', visitId).eq('doctor_id', doctorId)
+      if (e) dbFailed('visit close', e)
+    }
   }
   if (!stored) {
     const { error } = await db().from('visits').insert({ ...(visitId ? { id: visitId } : {}), patient_id: patientDbId, doctor_id: doctorId, started_at: now, ended_at: now, transcript: input.transcript, summary: input.summary })
