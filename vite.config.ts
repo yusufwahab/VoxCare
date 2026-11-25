@@ -69,7 +69,7 @@ export default defineConfig({
   test: {
     pool: 'vmThreads',
     environment: 'node',
-    include: ['src/**/*.test.{ts,tsx}', 'api/**/*.test.ts', 'server/**/*.test.ts', 'test/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'api/**/*.test.ts', 'server/**/*.test.ts', 'shared/**/*.test.ts', 'test/**/*.test.ts'],
     // Blocks the network, fakes Supabase and resets state between tests (see test/setup.ts)
     setupFiles: ['./test/setup.ts'],
     // Dummy values that override anything in .env, so tests never see real keys
