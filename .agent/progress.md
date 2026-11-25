@@ -13,7 +13,7 @@
 | `76f367a` | fix(auth) | Rate-limited doctor login, demo PIN refused in production (T1, partial) |
 | `47a09ec` | docs | First progress tracker (replaced by `.agent/`) |
 | `8b70c7d` | docs | AGENTS.md and `.agent/` records |
-| _T2 commit_ | fix(join) | Single-use, atomic, expiring join links; device-token re-invite (T2, S2) |
+| `dd9e5ac` | fix(join) | Single-use, atomic, expiring join links; device-token re-invite (T2, S2) |
 
 ## Verification log
 
@@ -22,6 +22,6 @@
 | Baseline `92fd4c7` | 35/35 | ok | ok / ok | ok | Prod deps 0 vulns; dev deps 11 (4 high), build-time only |
 | T0 `fa32bbc` | 53/53 | ok | ok / ok | ok | Checked on its own before push |
 | T1 `76f367a` | 116/116 | ok | ok / ok | ok | 24 of 36 new login tests fail on the old code. Build: no keys, no test code |
-| T2 | 150/150 | ok | ok / ok | ok | 21 of 34 new join tests fail on the old code. Build: no keys |
+| T2 `dd9e5ac` | 150/150 | ok | ok / ok | ok | 21 of 34 new join tests fail on the old code. Build: no keys |
 
 Test files: `test/networkGuard.test.ts` (13), `api/doctor-login.test.ts` (36), `api/_lib/clientIp.test.ts` (23), `api/_lib/rateLimit.test.ts` (5), `src/lib/api.test.ts` (4), plus the original `src/lib/sentence.test.ts` (31) and `api/email.test.ts` (4), `api/join.test.ts` (34).

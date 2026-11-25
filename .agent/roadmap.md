@@ -7,7 +7,7 @@ Security IDs (S1–S10) and code issues (C1–C6) are described in [blockers.md]
 |---|---|---|---|
 | T0 | Safe test foundation: network guard, Supabase fake, dummy env, resets | Mandatory | **Done** `fa32bbc` |
 | T1 | Doctor login brute-force protection (S1) | Mandatory | **Partial** `76f367a`. Remaining work deferred: D1 |
-| T2 | Help-person join link: **expiring and atomically consumed**, token-protected re-invite (S2) | Mandatory | **Done** (see progress.md) |
+| T2 | Help-person join link: **expiring and atomically consumed**, token-protected re-invite (S2) | Mandatory | **Done** `dd9e5ac` |
 | T3 | Per-client abuse limits: patient create, briefing, join, alert (S3) | Mandatory | To do |
 | T4 | Generic 500s; localhost CORS only outside production; test-email off in production (S7, S9, S10) | Mandatory | To do |
 | T5 | Separate `SESSION_SECRET` for session signing (S8) | Optional | To do (new env var: approval) |
