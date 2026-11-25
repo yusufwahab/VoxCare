@@ -13,6 +13,7 @@
   - **Render:** Settings, Build & Deploy: "Branch" must be `main` (or auto-deploy off). If it is `dev`, the push deploys these commits to the **production API**.
   - **Vercel:** a push to `dev` creates a Preview deployment by default. Check which `VITE_API_URL` the Preview environment uses. If it is the production Render URL, the preview frontend talks to production; the browser blocks it only because CORS allows `FRONTEND_URL` alone (old and new code). Best: a separate Render + Supabase project for previews, or disable previews for `dev` (Settings, Git, Ignored Build Step).
   - Supabase has no Git integration here, so pushes never touch the database.
+  - GitHub Actions (`.github/workflows/ci.yml`, T20) runs only on pull requests into `main`, never on a `dev` push. It has no secrets and cannot reach production. Opening or updating the PR runs it.
 - **W10 Local development writes to production.** `vite.config.ts` loads `.env` into the dev server, and `.env` holds the production `SUPABASE_URL` and service role key (names checked, values not printed). Running `npm run dev` and creating a patient or saving a visit writes to production and can send real Brevo emails and paid YarnGPT jobs. Use a separate Supabase project in `.env` for development. Tests are safe: they refuse to run unless every key is a dummy (`test/setup.ts`).
 - **W5** With `DEMO_MODE=true`, the demo teammate's phone number is visible in the deployed site's code (by design).
 
@@ -37,10 +38,11 @@
 
 ## Open correctness issues
 
-C1 fixed (T9) · C2 **partially** fixed (T8): validated and retry-safe, but a failure mid-save leaves some facts written until the doctor retries; two server instances could still duplicate a fact (no unique index) · C3 offline cache likely misses cross-origin audio and API (T16) · C4 fixed (T22) · C5 fixed (T10) · C6 fixed (T13).
+C1 fixed (T9) · C2 **partially** fixed (T8): validated and retry-safe, but a failure mid-save leaves some facts written until the doctor retries; two server instances could still duplicate a fact (no unique index) · C3 **fixed in code** (T16): own card, audio and photo stored by the app with expiry; needs a real-browser offline check (Supabase storage CORS) · C4 fixed (T22) · C5 fixed (T10) · C6 fixed (T13).
 
 ## Known limitations
 
+- **Offline copy (T16):** readable by anyone with the unlocked phone; a stale copy (up to 7 days) is shown with no "saved copy" label when offline; a responder's phone has no offline copy. Deleting a card (T7) must also call `clearOfflineCard()` (the 404 path does this on the next online open).
 - No browser or device tests: EndVisit error/retry (T9), reduced motion (T25) and the consent cards (T26) are verified by type check, lint and server-render tests only. Check on a phone before the demo.
 - Briefing jobs are merged per patient in one process only (like the rate limits).
 

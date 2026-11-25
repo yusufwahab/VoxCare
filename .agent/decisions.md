@@ -24,11 +24,15 @@
 | 2026-11-25 | Briefing text shared in `shared/` (uploaded to Vercel and Render) instead of two synced copies |
 | 2026-11-25 | The server alone triggers briefing regeneration (patient create, self facts, verify); the client never does |
 | 2026-11-25 | Timeouts: Brevo 10 s, YarnGPT 15 s, audio download 30 s; browser alert and save requests 20 s |
+| 2026-11-25 | No AI attribution in commits or PRs (`attribution.commit` / `attribution.pr` = `""` in `~/.claude/settings.json`); short plain commit messages, concise bodies |
+| 2026-11-25 | T16: offline data kept by the app (`src/lib/offline.ts`), not service worker rules. Only the device's own card (patient id matches the persisted one); 7-day expiry; refreshed on Home and the emergency page; cleared on reset, a new card, or a 404. Old `vc-emergency` / `vc-briefings` caches deleted on start. Shows no "saved copy" label (would be a UI change; ask first) |
+| 2026-11-25 | T20: GitHub Actions on `pull_request` into `main` only (not on push), `contents: read`, dummy env, no secrets, no deploy |
 
 ## Proposals awaiting approval
 
 - **P1 (T8 atomicity, migration):** full proposal in [proposals/P1-atomic-visit-save.md](proposals/P1-atomic-visit-save.md). Summary: `create unique index facts_patient_type_value on facts (patient_id, type, lower(value))` plus a `security definer` function `save_visit(doctor uuid, patient uuid, visit uuid, facts jsonb, remove uuid[], transcript jsonb, summary text)` that does the updates, inserts (`on conflict do update`), deletes and visit insert (`on conflict (id) do nothing`) in one transaction; `api/verify.ts` calls it with `db().rpc()`. Needed because supabase-js has no transactions. Clean duplicate facts before creating the index. Test on a copy first, never on production directly.
 - **P2 (T6 patient authorisation):** see handoff.
+- **Pending collaborator approval (session 4):** atomic medical record transactions (P1), doctor authentication redesign (D1), patient authorisation codes (P2/D3), patient card deletion and revocation (D2). Do not implement until approved.
 
 ## Deferred (need team approval; keep in roadmap)
 

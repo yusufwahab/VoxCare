@@ -20,19 +20,19 @@ Security IDs (S1–S10) and code issues (C1–C6) are described in [blockers.md]
 | T12 | Alert rate-limit race, location range validation (S6) | Optional | **Done** `392a21d` (single instance): parallel alerts share the real outcome; bad locations dropped |
 | T13 | Remove duplicate briefing trigger after setup (C6) | Optional | **Done** `52fc8a6` (also after verify; self facts now refresh the briefing) |
 | T14 | Termii SMS alerts (spec §9; code sends email) | Needs approval | Blocked: D4 |
-| T15 | Document the changed setup "Check" step | Needs approval | To do |
-| T16 | Offline cache for briefing audio and emergency data (C3), **handling sensitive medical data in caches, expiry and revocation** | Mandatory | To do |
-| T17 | Handler tests for every endpoint (incl. emergency never returns transcripts) | Mandatory | Ongoing with each fix |
+| T15 | Document the changed setup "Check" step | Needs approval | **Done** (docs only): [docs/requirements-status.md](../docs/requirements-status.md) lists every spec deviation, partial and outstanding item |
+| T16 | Offline cache for briefing audio and emergency data (C3), **handling sensitive medical data in caches, expiry and revocation** | Mandatory | **Done** (code); browser check pending. Own card only, 7-day expiry, cleared on reset / new card / 404; SW rules removed |
+| T17 | Handler tests for every endpoint (incl. emergency never returns transcripts) | Mandatory | **Done** for every endpoint: emergency and facts added (`api/endpoints.test.ts`) |
 | T18 | Server tests (export the handler from `server/index.ts`) | Optional | **Done** with T4 (`server/app.ts`, `server/app.test.ts`) |
 | T19 | Playwright end-to-end tests | Optional | To do (new dependency: approval) |
-| T20 | CI on **pull requests into `main`**: test, lint, build, backend type check | Optional | To do |
+| T20 | CI on **pull requests into `main`**: test, lint, build, backend type check | Optional | **Done** `.github/workflows/ci.yml` (dummy env, no secrets, no deploy). Not yet run on GitHub |
 | T21 | Coverage reporting (`@vitest/coverage-v8`) | Optional | To do (new dependency: approval) |
 | T22 | Backend type check inside `npm run build` (C4) | Mandatory | **Done** `8f95a80`, Vercel fix `edf2808` (skipped only on Vercel, where `api/` is not uploaded) |
 | T23 | Remove `@vercel/node` (types only; clears 7 dev audit findings) | Needs approval | To do |
 | T24 | vite-plugin-pwa dev audit findings (only offered fix is a downgrade) | Optional | Accepted, monitor |
 | T25 | `MotionConfig reducedMotion="user"` (spec §10) | Mandatory | **Done** `a0465d3` (device check pending) |
 | T26 | Consent picture cards are focusable buttons with no action | Mandatory | **Done** `a0465d3` |
-| T27 | Lighthouse + axe at 375 / 820 / 1180 / 1440 px | Mandatory | To do |
+| T27 | Lighthouse + axe at 375 / 820 / 1180 / 1440 px | Mandatory | **Partial**: static checks (`test/a11y.test.ts`: alt, sizes, icon labels, zoom) and bundle size (~88 KB gzipped initial JS). Lighthouse, axe and visual checks need a browser |
 
 ## Deferred security work for S1 (from T1, pending team approval: D1)
 
@@ -42,4 +42,4 @@ Security IDs (S1–S10) and code issues (C1–C6) are described in [blockers.md]
 
 ## Planned order for the remaining budget
 
-~~T2~~ → ~~T4 + T3~~ → ~~T8 + T9 + T22~~ → ~~T11 → T10 → T13 → T25 + T26~~ → T16 → T27 → final verification → final verification and PR description.
+~~T2~~ → ~~T4 + T3~~ → ~~T8 + T9 + T22~~ → ~~T11 → T10 → T13 → T25 + T26~~ → ~~T16 → T20 → T15 → T17~~ → T27 in a browser → B1 merge (approval) → final verification and PR description.

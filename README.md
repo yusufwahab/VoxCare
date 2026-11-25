@@ -140,9 +140,12 @@ Server errors return a generic message (`Something went wrong. Please try again.
 
 Helpers: `invoke()` in [test/http.ts](test/http.ts) calls an `/api` handler directly; `mockFetch()` in [test/mocks/fetch.ts](test/mocks/fetch.ts) fakes Brevo, YarnGPT or the API by URL.
 
+**Pull request checks:** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs lint, both type checks, the tests and the build on every pull request into `main`. It uses dummy values only, needs no repository secrets and deploys nothing.
+
 ## Notes
 
 - `?debug=regions` on any body map draws the calibrated body-region polygons.
 - Briefings are cached by `sha256(text + language + voice)`. YarnGPT is only called when the text changes, and each real call is logged.
 - Emergency audio is returned only if it matches the current verified facts. Otherwise the phone speaks the current English text.
+- **Offline emergency card:** the patient's own phone keeps a copy of its emergency card (the same data the QR code shows), the four briefing MP3s and the photo in the `vc-offline-card-v1` cache ([src/lib/offline.ts](src/lib/offline.ts)). It is refreshed on Home and on the emergency page while online, expires after 7 days, and is deleted when the device is reset, a new card is set up, or the server says the card no longer exists. A responder's phone that scans someone else's card stores nothing. Anyone holding the unlocked phone can read the copy. Supabase storage must allow CORS downloads (it does for public buckets by default).
 - Landing photos use the VoxCare asset pack only. No third-party photos, so there are no credits to add.
