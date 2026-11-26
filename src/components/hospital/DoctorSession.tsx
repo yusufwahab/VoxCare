@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft, HandHelping, QrCode, Volume2 } from 'lucide-react'
 import { PatientSide, ShownOverlay } from './PatientSide'
@@ -51,18 +51,32 @@ function SplitView({ onEnd }: { onEnd: () => void }) {
 /** One phone or portrait tablet: a big button hands the device across, with a slide */
 function HandOver({ onEnd }: { onEnd: () => void }) {
   const [handed, setHanded] = useState(false)
+
+  // The device changes hands by itself, so nobody has to keep tapping the button:
+  // to the patient when the doctor sends something, back to the doctor when the patient has finished.
+  useEffect(() => {
+    return useVisit.subscribe((s, prev) => {
+      if (!prev.shown && s.shown) setHanded(true)
+      if ((prev.sentenceOpen && !s.sentenceOpen) || (prev.answerOpen && !s.answerOpen)) setHanded(false)
+      if (!prev.pictureRequested && s.pictureRequested) setHanded(false)
+    })
+  }, [])
+
   return (
     <div className="relative h-full overflow-hidden">
       <AnimatePresence initial={false} mode="popLayout">
         {handed ? (
           <motion.section key="patient" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'tween', duration: 0.28 }} className="absolute inset-0 overflow-y-auto bg-ivory" aria-label="Patient">
-            <div className="relative min-h-full">
+            {/* A slim bar above the page, so it never covers the title */}
+            <div className="sticky top-0 z-30 flex items-center border-b border-line bg-ivory/95 px-2 py-1 backdrop-blur">
+              <button onClick={() => setHanded(false)} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-muted hover:bg-sand">
+                <ArrowLeft size={16} aria-hidden /> Back to doctor
+              </button>
+            </div>
+            <div className="relative min-h-[calc(100%-3rem)]">
               <PatientSide />
               <AnimatePresence><ShownOverlay /></AnimatePresence>
             </div>
-            <button onClick={() => setHanded(false)} className="fixed left-3 top-3 z-[45] inline-flex min-h-12 items-center gap-2 rounded-full bg-ink/85 px-5 text-sm font-semibold text-ivory backdrop-blur">
-              <ArrowLeft size={18} aria-hidden /> Back to doctor
-            </button>
           </motion.section>
         ) : (
           <motion.section key="doctor" initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'tween', duration: 0.28 }} className="absolute inset-0 overflow-y-auto bg-sand/50" aria-label="Doctor">
@@ -98,9 +112,9 @@ function TwoDevices({ onEnd }: { onEnd: () => void }) {
         </div>
 
         {!voiceReady && (
-          <div className="mx-5 mt-4 flex items-center justify-between gap-3 rounded-[20px] bg-self-bg p-4 sm:mx-7">
-            <p className="text-sm font-semibold">Tap once so this phone can speak the patient&apos;s words aloud.</p>
-            <button onClick={() => { speak('Voice is on.'); setVoiceReady() }} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-ember px-4 font-semibold text-ink">
+          <div className="mx-5 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[20px] bg-self-bg p-4 sm:mx-7">
+            <p className="min-w-0 flex-1 text-sm font-semibold">Tap once so this phone can speak the patient&apos;s words aloud.</p>
+            <button onClick={() => { speak('Voice is on.'); setVoiceReady() }} className="inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-ember px-4 font-semibold text-ink">
               <Volume2 size={18} aria-hidden /> Enable voice
             </button>
           </div>

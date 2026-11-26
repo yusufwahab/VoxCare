@@ -35,23 +35,23 @@ export function DoctorPanel({ onEnd, layout = 'stack', toolbar }: { onEnd: () =>
 
   return (
     <div className="flex h-full flex-col gap-5 p-5 sm:p-7">
-      <header className="flex items-center justify-between gap-3">
-        <div>
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0">
           <Eyebrow>Doctor panel</Eyebrow>
-          <p className="mt-2 text-sm font-semibold text-muted">{doctor?.name} · {v.patientName ?? 'Walk-in visit'}</p>
+          <p className="mt-2 truncate text-sm font-semibold text-muted">{doctor?.name} · {v.patientName ?? 'Walk-in visit'}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {toolbar}
-          <button onClick={onEnd} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-ink px-5 font-semibold text-ivory">
-            <Flag size={18} aria-hidden /> End visit
+          <button onClick={onEnd} className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full bg-ink px-4 text-sm font-semibold text-ivory">
+            <Flag size={16} aria-hidden /> End visit
           </button>
         </div>
       </header>
 
       {layout === 'tabs' && (
-        <div className="sticky top-0 z-10 -mx-1 flex gap-1 overflow-x-auto rounded-full bg-sand p-1" role="tablist" aria-label="Doctor sections">
+        <div className="sticky top-0 z-10 flex gap-1 overflow-x-auto rounded-full bg-sand p-1 [scrollbar-width:none]" role="tablist" aria-label="Doctor sections">
           {TABS.map((t) => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cx('min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors', tab === t.id ? 'bg-ink text-ivory' : 'text-muted')}>
+            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cx('min-h-11 flex-1 whitespace-nowrap rounded-full px-3 text-[13px] font-semibold transition-colors sm:text-sm', tab === t.id ? 'bg-ink text-ivory' : 'text-muted')}>
               {t.label}
             </button>
           ))}
@@ -160,10 +160,10 @@ function AnswerCard({ answer }: { answer: { question: string; answer: string } }
     )
   }
   return (
-    <section className={cx('flex items-center gap-5 rounded-[20px] p-5 text-white', no ? 'bg-alert' : 'bg-verified')} role="status">
-      <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white/20">{no ? <X size={36} strokeWidth={3.2} aria-hidden /> : <Check size={36} strokeWidth={3.2} aria-hidden />}</span>
-      <div className="min-w-0">
-        <p className="text-4xl font-semibold leading-none tracking-tight">{understood ? 'UNDERSTOOD' : no ? 'NO' : 'YES'}</p>
+    <section className={cx('flex items-center gap-4 rounded-[20px] p-5 text-white', no ? 'bg-alert' : 'bg-verified')} role="status">
+      <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white/20">{no ? <X size={32} strokeWidth={3.2} aria-hidden /> : <Check size={32} strokeWidth={3.2} aria-hidden />}</span>
+      <div className="min-w-0 flex-1">
+        <p className="break-words text-[clamp(1.5rem,7.5vw,2.25rem)] font-semibold leading-none tracking-tight">{understood ? 'UNDERSTOOD' : no ? 'NO' : 'YES'}</p>
         <p className="mt-1 text-sm text-white/85">{answer.question}</p>
         {!understood && <p className="text-base font-semibold">{answer.answer}</p>}
       </div>

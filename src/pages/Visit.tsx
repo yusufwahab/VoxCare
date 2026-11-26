@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Check, ShieldCheck, X } from 'lucide-react'
-import { Badge, Eyebrow, Page, PillButton } from '../components/ui'
+import { Badge, Eyebrow, LoadingDots, Page, PillButton } from '../components/ui'
 import { Dialpad } from '../components/Dialpad'
 import { PatientSide, ShownOverlay } from '../components/hospital/PatientSide'
 import { PresenceDot, SwitchModeButton } from '../components/hospital/PresenceDot'
@@ -51,7 +51,7 @@ function CodeEntry() {
         </div>
         {error && <p role="alert" className="mb-3 font-semibold text-alert">{error}</p>}
         <Dialpad value={code} maxLength={6} noPlus hideDisplay onChange={(v) => { const d = v.replace(/\D/g, ''); setCode(d); setError(''); if (d.length === 6) void go(d) }} />
-        {busy && <p className="mt-4 text-muted">Looking</p>}
+        {busy && <p className="mt-4 text-muted"><LoadingDots label="Looking" /></p>}
         <Link to="/" className="mt-8 inline-block text-sm font-semibold text-muted underline-offset-4 hover:underline">Back to home</Link>
       </div>
     </Page>

@@ -95,7 +95,7 @@ export default function Emergency() {
   if (data === null) {
     return (
       <main className="grid min-h-dvh place-items-center bg-ivory p-6 text-center">
-        <div><h1 className="h3">This card was not found</h1><p className="mt-2 text-muted">Check the QR code or NFC sticker, then try again.</p></div>
+        <div><h1 className="h3">This card was not found</h1><p className="mt-2 text-muted">Check the QR code or VoxTag, then try again.</p></div>
       </main>
     )
   }

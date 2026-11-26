@@ -122,10 +122,10 @@ export function BodyMap({
         <button
           onClick={() => onViewChange(view === 'front' ? 'back' : 'front')}
           aria-label={view === 'front' ? 'Show the back' : 'Show the front'}
-          className="glass absolute right-3 top-3 z-10 flex h-14 items-center gap-2 rounded-full px-4 font-semibold text-ivory"
+          className="absolute bottom-3 right-3 z-10 flex h-11 items-center gap-1.5 rounded-full border border-white/30 bg-ink/55 px-3.5 text-[13px] font-semibold text-ivory backdrop-blur"
         >
-          <RotateCw size={20} aria-hidden />
-          <span>{view === 'front' ? 'Back' : 'Front'}</span>
+          <RotateCw size={16} aria-hidden />
+          <span>{view === 'front' ? 'See back' : 'See front'}</span>
         </button>
       )}
     </div>

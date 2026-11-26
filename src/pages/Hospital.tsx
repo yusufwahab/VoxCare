@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ArrowRight, Check, Nfc, QrCode, UserPlus, X, Stethoscope, ShieldCheck } from 'lucide-react'
-import { Badge, Eyebrow, Page, cx } from '../components/ui'
+import { Badge, Eyebrow, LoadingDots, Page, cx } from '../components/ui'
 import { Dialpad } from '../components/Dialpad'
 import { Scanner, nfcSupported, readNfc } from '../components/Scanner'
 import { DoctorSession } from '../components/hospital/DoctorSession'
@@ -10,6 +10,7 @@ import { ModeChoice } from '../components/hospital/ModeChoice'
 import { PracticeTap, TeachClip } from '../components/hospital/Teach'
 import { createVisit, doctorLogin, getPatientPublic, DEMO_ID, isMockBackend } from '../lib/api'
 import { warmVoices } from '../lib/speech'
+import { TAG } from '../lib/brand'
 import { UI } from '../data/assets'
 import { useStaff } from '../store/device'
 import { useVisit } from '../visit/store'
@@ -92,7 +93,7 @@ export default function Hospital() {
             </button>
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
-            {nfcSupported() && <button onClick={nfc} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-line bg-white px-5 font-semibold"><Nfc size={18} aria-hidden /> Tap NFC sticker</button>}
+            {nfcSupported() && <button onClick={nfc} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-line bg-white px-5 font-semibold"><Nfc size={18} aria-hidden /> Tap {TAG}</button>}
             <button onClick={() => loadPatient(DEMO_ID)} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-line bg-white px-5 font-semibold">Use demo patient <ArrowRight size={16} aria-hidden /></button>
           </div>
           {isMockBackend() && <p className="mt-6 text-sm text-muted">Demo data mode: the server is not connected yet.</p>}
@@ -164,7 +165,7 @@ function PinLogin({ onDone }: { onDone: (d: NonNullable<ReturnType<typeof useSta
         </div>
         {err && <p role="alert" className="mb-3 font-semibold text-alert">That PIN is not right. Try again.</p>}
         <Dialpad value={pin} maxLength={4} onChange={(v) => { setErr(false); setPin(v.replace(/\D/g, '')); if (v.replace(/\D/g, '').length === 4) submit(v.replace(/\D/g, '')) }} hideDisplay />
-        {busy && <p className="mt-4 text-muted">Checking</p>}
+        {busy && <p className="mt-4 text-muted"><LoadingDots label="Checking" /></p>}
         <Link to="/" className="mt-8 inline-block text-sm font-semibold text-muted underline-offset-4 hover:underline">Back to home</Link>
       </div>
     </Page>

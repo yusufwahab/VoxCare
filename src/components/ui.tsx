@@ -171,6 +171,18 @@ export function AnswerButtons({ onYes, onNo, yesLabel = 'Yes', noLabel = 'No', s
   )
 }
 
+/** "Checking" with three dots that grow bolder one after another, so it is clear the app is working */
+export function LoadingDots({ label }: { label: string }) {
+  return (
+    <span role="status" className="inline-flex items-center gap-2 font-semibold">
+      {label}
+      <span className="inline-flex gap-1" aria-hidden>
+        {[0, 1, 2].map((i) => <span key={i} className="loading-dot h-2 w-2 rounded-full bg-current" style={{ animationDelay: `${i * 0.22}s` }} />)}
+      </span>
+    </span>
+  )
+}
+
 export function Badge({ kind, children }: { kind: 'verified' | 'self' | 'alert'; children: ReactNode }) {
   const map = {
     verified: 'bg-verified-bg text-verified',

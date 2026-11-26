@@ -91,6 +91,10 @@ Open `https://<your-vercel-address>/e/demo`. It should load the demo patient. Th
 
 In a deployed build the app never falls back to mock data. If the API address is wrong or the server is down, requests fail visibly instead of faking a patient.
 
+## The VoxTag and printing the QR code
+
+The NFC tag a patient carries (a sticker, band or keyring) is called a **VoxTag** in the app. To rename it, change one line in `src/lib/brand.ts`. On the card page the patient can write the card link to a VoxTag (Android Chrome) or press **Print my QR code**, which prints a clean sheet with a large QR code that can go in a wallet, on a phone case or on a door.
+
 ## Visit modes
 
 Every visit is created on the server when the doctor starts it, and gets a 6-digit code.
