@@ -27,7 +27,7 @@ function getLocation(): Promise<{ lat: number; lng: number } | undefined> {
 export default function Emergency() {
   const { patientId = '' } = useParams()
   const [data, setData] = useState<EmergencyData | null | undefined>(undefined)
-  const [alert, setAlert] = useState<'sending' | 'sent' | 'failed'>('sending')
+  const [alert, setAlert] = useState<'sending' | 'sent' | 'no_email' | 'failed'>('sending')
   const [loc, setLoc] = useState<{ lat: number; lng: number } | undefined>()
   const [playing, setPlaying] = useState(false)
   const [lang, setLang] = useState<Lang | null>(null)
@@ -46,7 +46,7 @@ export default function Emergency() {
       setLoc(l)
       try {
         const r = await sendAlert(patientId, l)
-        setAlert(r.sent ? 'sent' : 'failed')
+        setAlert(r.sent ? 'sent' : r.reason === 'no_email' ? 'no_email' : 'failed')
       } catch { setAlert('failed') }
     })
     return () => { audio.current?.pause(); stopSpeaking() }
@@ -110,7 +110,7 @@ export default function Emergency() {
       <AnimatePresence>
         {alert !== 'sending' && (
           <motion.div initial={{ y: -40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className={cx('sticky top-0 z-30 flex items-center justify-center gap-2 px-4 py-3 text-center text-lg font-semibold text-white', alert === 'sent' ? 'bg-verified' : 'bg-cocoa')} role="status">
-            {alert === 'sent' ? <><Check size={22} aria-hidden /> Family has been emailed.</> : <><BellRing size={22} aria-hidden /> Could not email family. Please call them now.</>}
+            {alert === 'sent' ? <><Check size={22} aria-hidden /> Family has been emailed.</> : <><BellRing size={22} aria-hidden /> {alert === 'no_email' ? 'Family has not joined VoxCare yet. Please call them now.' : 'Could not email family. Please call them now.'}</>}
           </motion.div>
         )}
       </AnimatePresence>

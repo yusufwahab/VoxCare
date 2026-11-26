@@ -7,6 +7,7 @@ import { MiniBody, type Pin } from '../components/BodyMap'
 import { UI } from '../data/assets'
 import { LANGS } from '../lib/types'
 import { speak, stopSpeaking, warmVoices } from '../lib/speech'
+import { TAG } from '../lib/brand'
 
 const heroPin: Pin = { id: 'hero', view: 'front', x: 43.2, y: 70.6, regionName: 'Right knee', kind: 'sharp' }
 
@@ -36,7 +37,7 @@ export default function Landing() {
           <span className="flex items-center gap-2 text-xl font-semibold tracking-tight"><span className="glow inline-block h-5 w-5" aria-hidden /> voxcare</span>
           <div className="flex items-center gap-2">
             <Link to="/hospital" className="hidden min-h-11 items-center rounded-full px-4 text-sm font-semibold hover:bg-white/10 sm:inline-flex">Hospital mode</Link>
-            <PillButton to="/start" variant="ivory" className="!min-h-11 !text-sm">Get my card</PillButton>
+            <PillButton to="/start" variant="ivory" className="!min-h-11 !text-sm">Connect my {TAG}</PillButton>
           </div>
         </nav>
 
@@ -151,7 +152,7 @@ export default function Landing() {
         <motion.div {...reveal} className="mt-16 flex flex-wrap items-center justify-between gap-6 rounded-[28px] p-8 text-ivory sm:p-12" style={{ background: 'var(--warm-gradient)' }}>
           <h2 className="h2 max-w-md">Ready in 20 seconds.</h2>
           <div className="flex flex-wrap gap-3">
-            <PillButton to="/start" variant="ivory" size="lg" icon={<Check size={22} />}>Get my card</PillButton>
+            <PillButton to="/start" variant="ivory" size="lg" icon={<Check size={22} />}>Connect my {TAG}</PillButton>
             <PillButton to="/hospital" variant="ghost-light" size="lg" icon={<Stethoscope size={22} />}>Hospital mode</PillButton>
           </div>
         </motion.div>
