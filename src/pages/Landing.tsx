@@ -47,7 +47,7 @@ export default function Landing() {
             <h1 className="display mt-6 max-w-xl">Speak without a voice.</h1>
             <p className="mt-6 max-w-md text-lg text-ivory/80 sm:text-xl">Tap where it hurts. Pick a picture. VoxCare says it out loud, for doctors and for first responders.</p>
             <div className="mt-9 flex flex-wrap gap-3">
-              <PillButton to="/start" variant="ivory" size="lg">Get my VoxCare card</PillButton>
+              <PillButton to="/start" variant="ivory" size="lg">Connect my {TAG}</PillButton>
               <PillButton to="/hospital" variant="ghost-light" size="lg">Hospital mode</PillButton>
             </div>
           </motion.div>
